@@ -1,6 +1,7 @@
 packages:
   - .
   - release/app
+  - server
 
 # Supply chain security: only install packages published at least 7 days ago
 minimumReleaseAge: 10080
