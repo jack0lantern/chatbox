@@ -188,7 +188,7 @@ Iframes are long-lived and receive multiple `INVOKE_TOOL` messages during their 
 
 ### Chess (`internal`)
 
-Iframe loads a standalone React app using chess.js (game logic) and react-chessboard (UI). Hosted as a static page within the app (e.g., `/plugins/chess/index.html`).
+Iframe loads a standalone React app using chess.js (game logic), react-chessboard (UI), and Stockfish WASM (AI opponent). Hosted as a static page within the app (e.g., `/plugins/chess/index.html`).
 
 **Tool schemas:**
 
@@ -200,29 +200,41 @@ Iframe loads a standalone React app using chess.js (game logic) and react-chessb
 | `undo_move` | `{}` | Undo the last move |
 | `redo_move` | `{}` | Redo a previously undone move |
 
-The AI opponent runs inside the iframe (chess.js built-in evaluation). The LLM doesn't play chess — it routes user requests to the right tool call.
+The AI opponent is Stockfish WASM (~2MB), running in a web worker inside the iframe. Difficulty maps to search depth (easy=depth 1, medium=depth 5, hard=depth 10). The LLM doesn't play chess — it routes user requests to the right tool call.
 
 **Persisted state:** Board position (FEN string), move history, difficulty, color, undo/redo stacks.
 
 ### Timeline (`internal`)
 
-A history quiz game. The iframe presents a set of historical events and the student drags them into chronological order.
+A card-based history quiz game inspired by [WikiTrivia](https://wikitrivia.tomjwatson.com/). On each turn, a new event card is revealed and the student places it in the correct position on a growing timeline. Wrong placement costs a life.
+
+**Data source:** A static JSON file bundled with the plugin (`/plugins/timeline/data/events.json`), categorized by topic:
+
+```json
+[
+  { "id": "moon-landing", "event": "First Moon Landing", "year": 1969, "category": "space" },
+  { "id": "magna-carta", "event": "Magna Carta Signed", "year": 1215, "category": "politics" }
+]
+```
+
+No LLM dependency for quiz content. The LLM's only role is routing user intent to tool calls.
 
 **Tool schemas:**
 
 | Tool | Params | Description |
 |------|--------|-------------|
-| `start_quiz` | `{ topic: string, difficulty: "easy"\|"medium"\|"hard" }` | Start a new quiz. The backend asks the LLM to generate events for the topic. |
-| `check_answer` | `{}` | Check the student's current ordering |
-| `get_hint` | `{}` | Reveal the correct position of one event |
-| `next_round` | `{}` | Advance to the next set of events |
+| `start_quiz` | `{ category?: string }` | Start a new game. Optional category filter. Shuffles the deck. |
+| `check_placement` | `{}` | Validate where the student placed the current card |
+| `get_hint` | `{}` | Narrow down the correct position |
+| `next_card` | `{}` | Draw the next card (called automatically after correct placement) |
+
+Difficulty is emergent — the further the student gets, the tighter the gaps between dates on the timeline, making placement harder. No explicit difficulty param needed.
 
 **Game mechanics:**
 - 3 lives. Each wrong placement costs a life.
 - At 0 lives, the iframe sends `TASK_COMPLETE` with the final score.
-- The LLM generates quiz content — when `start_quiz` is invoked, the backend asks the LLM to produce a set of events for the given topic, then passes them to the iframe via `INVOKE_TOOL`.
 
-**Persisted state:** Current events list, user's ordering, score, round number, lives remaining.
+**Persisted state:** Timeline (placed cards in order), remaining deck, current card, score, lives remaining.
 
 ### Spotify (`external_authenticated`)
 
@@ -353,5 +365,5 @@ Four phases — each one deployable and testable before the next starts.
 | Real-time | SSE for LLM streaming |
 | Plugin UI | Sandboxed iframes |
 | Plugin comms | window.postMessage (7 message types) |
-| Chess engine | chess.js + react-chessboard |
+| Chess engine | chess.js + react-chessboard + Stockfish WASM |
 | Testing | Playwright (E2E lifecycle) |
