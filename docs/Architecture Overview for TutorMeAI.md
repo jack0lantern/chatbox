@@ -154,6 +154,47 @@ Completion: Iframe finishes its task and sends window.postMessage({ type: 'TASK_
 * **CSP**: Enforced via headers to restrict iframe sources to registered developer domains.  
 * **Rate Limiting**: Implemented per app and per user session to prevent API abuse.
 
+Here is a highly structured, technical summary of the ChatBridge authentication and security architecture.
+
+***
+
+### ⚙️ ChatBridge: Architecture & Security Blueprint
+**System Context:** We are building "ChatBridge," a Next.js-based AI chat platform that orchestrates third-party applications inside a chat interface. The system must securely render third-party UIs, manage state bidirectionally, and handle OAuth flows without exposing sensitive credentials to the AI or the client browser. 
+
+#### 1. Core Technology Stack
+* **Framework:** Next.js (App Router, Serverless API routes)
+* **Authentication:** NextAuth.js
+* **Database:** PostgreSQL (via Supabase or Prisma)
+* **AI Agent:** OpenAI (GPT-4o-mini) with function calling
+* **Real-time:** Server-Sent Events (SSE) for AI streaming
+
+#### 2. Sandboxing & UI Security
+* **Iframe Constraints:** Third-party UIs are rendered in strict iframes using `sandbox="allow-scripts allow-same-origin"`. [cite_start]**Popups are explicitly disabled** to prevent clickjacking and malicious redirects. [cite: 40, 172, 173]
+* [cite_start]**Communication Bridge:** The parent window and iframe communicate *exclusively* via the `window.postMessage` API using a strict JSON event schema (`INVOKE_TOOL`, `STATE_UPDATE`, `TASK_COMPLETE`). [cite: 42, 85, 146]
+
+#### 3. Authentication Architecture (Platform-Brokered)
+[cite_start]The platform handles three app types: Internal, External (Public), and External (Authenticated). [cite: 68, 69, 70] For Authenticated apps (e.g., Spotify), the iframe NEVER handles its own login.
+* [cite_start]**Account Linking:** NextAuth is used to manage both the primary user session and third-party OAuth tokens. [cite: 35, 71] Third-party tokens are stored in the PostgreSQL `Account` table linked to the primary `User` ID.
+* [cite_start]**Parent-Level OAuth:** If an app requires authentication, the parent Next.js application intercepts the request and triggers `signIn('provider')`. [cite: 71] This executes the OAuth flow in the top-level window, completely bypassing `X-Frame-Options` blocking issues.
+* [cite_start]**Automated Refreshing:** NextAuth's backend logic automatically refreshes expired access tokens in the background. [cite: 71]
+
+#### 4. Tool Invocation Security (Server-Side Proxy)
+To prevent **Prompt Injection** leaks, the AI model NEVER sees the user's raw OAuth tokens or API keys.
+* **Intent Routing Only:** The LLM simply outputs a JSON tool call intent (e.g., `{"tool": "spotify_create", "params": {"name": "Hits"}}`).
+* **Backend Proxy Execution:** A secure Next.js API route intercepts this intent. The server fetches the user's NextAuth tokens from PostgreSQL, injects them into the HTTP headers, and makes the API call to the third party securely from the server.
+* [cite_start]**Sanitized Handoff:** The backend passes the safe result back to the LLM to continue the conversation, and uses `postMessage` to pass temporary session credentials to the iframe so the UI can render. [cite: 71]
+
+#### 5. The Step-by-Step Execution Flow (External Auth App)
+1.  **Trigger:** User asks the AI to use a tool (e.g., "Play Spotify").
+2.  **Detection:** Backend proxy intercepts the tool call and checks PostgreSQL for a linked Spotify token.
+3.  **Auth Prompt (If no token):** Backend returns `AUTH_REQUIRED`. The Chat UI renders a native "[Connect Spotify]" button. User clicks, triggering a top-level NextAuth redirect. Tokens are securely saved.
+4.  **Execution (If token exists):** Backend proxy securely executes the API call to Spotify using the saved token.
+5.  **Rendering:** Chat UI renders the third-party iframe.
+6.  **Handoff:** Chat UI sends `window.postMessage({ type: 'INVOKE_TOOL', payload: { ...params, credentials } })` to the iframe.
+7.  **Completion:** Iframe finishes its task and sends `window.postMessage({ type: 'TASK_COMPLETE', payload: { result } })` back to the parent. [cite_start]Chatbot resumes conversation. [cite: 42, 106]
+
+***
+
 13\. Error Handling & Resilience
 
 * **Timeouts**: 10-second timeout on the backend proxy.  

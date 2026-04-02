@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { checkLoginStatus, getChatboxOrigin, requestLoginTicketId } from '@/packages/remote'
 import platform from '@/platform'
-import { LOGIN_POLLING_INTERVAL, LOGIN_POLLING_TIMEOUT } from './constants'
+import { LOGIN_MAX_TICKET_RETRIES, LOGIN_POLLING_INTERVAL, LOGIN_POLLING_TIMEOUT } from './constants'
 import type { LoginState } from './types'
 
 interface UseLoginParams {
@@ -24,13 +24,31 @@ export function useLogin({ language, onLoginSuccess }: UseLoginParams) {
   const [loginError, setLoginError] = useState<string>('')
   const pollingStartTime = useRef<number>(0)
   const loginSuccessHandled = useRef<boolean>(false)
+  const ticketRetryCount = useRef<number>(0)
   const [loginUrl, setLoginUrl] = useState<string>('')
+
+  const refreshTicket = useCallback(async () => {
+    try {
+      const ticket = await requestLoginTicketId()
+      setTicketId(ticket)
+
+      const url = `${getChatboxOrigin()}/${getLanguagePath(language)}/authorize?ticket_id=${ticket}`
+      setLoginUrl(url)
+      pollingStartTime.current = Date.now()
+
+      return true
+    } catch (error: any) {
+      console.error('Failed to refresh login ticket:', error)
+      return false
+    }
+  }, [language])
 
   const _handleLogin = useCallback(async () => {
     try {
       setLoginState('requesting')
       setLoginError('')
       loginSuccessHandled.current = false
+      ticketRetryCount.current = 0
 
       const ticket = await requestLoginTicketId()
       setTicketId(ticket)
@@ -142,18 +160,29 @@ export function useLogin({ language, onLoginSuccess }: UseLoginParams) {
 
   useEffect(() => {
     if (loginState === 'polling') {
-      const checkTimeout = setInterval(() => {
+      const checkTimeout = setInterval(async () => {
         const elapsed = Date.now() - pollingStartTime.current
         if (elapsed > LOGIN_POLLING_TIMEOUT) {
-          setLoginError(t('Login timeout. Please try again.') || '')
-          setLoginState('timeout')
-          setTicketId('')
+          if (ticketRetryCount.current < LOGIN_MAX_TICKET_RETRIES) {
+            ticketRetryCount.current += 1
+            console.log(`Login ticket expired, refreshing (attempt ${ticketRetryCount.current}/${LOGIN_MAX_TICKET_RETRIES})`)
+            const success = await refreshTicket()
+            if (!success) {
+              setLoginError(t('Login timeout. Please try again.') || '')
+              setLoginState('timeout')
+              setTicketId('')
+            }
+          } else {
+            setLoginError(t('Login timeout. Please try again.') || '')
+            setLoginState('timeout')
+            setTicketId('')
+          }
         }
       }, 1000)
 
       return () => clearInterval(checkTimeout)
     }
-  }, [loginState, setLoginState])
+  }, [loginState, setLoginState, refreshTicket])
 
   return {
     handleLogin,

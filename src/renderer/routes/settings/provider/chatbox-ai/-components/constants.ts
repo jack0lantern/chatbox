@@ -1,6 +1,7 @@
 // Login polling configuration
 export const LOGIN_POLLING_INTERVAL = 1000
 export const LOGIN_POLLING_TIMEOUT = 3 * 60 * 1000
+export const LOGIN_MAX_TICKET_RETRIES = 3
 
 // View transition configuration
 export const VIEW_TRANSITION_DURATION = 300
