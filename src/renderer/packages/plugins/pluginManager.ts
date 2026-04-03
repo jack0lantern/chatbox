@@ -1,7 +1,14 @@
-type EventType = 'mount' | 'unmount'
+type EventType = 'mount' | 'unmount' | 'invoke'
 
 interface MountEvent {
   pluginSlug: string
+  toolName: string
+  parameters: Record<string, unknown>
+}
+
+interface InvokeEvent {
+  pluginSlug: string
+  invocationId: string
   toolName: string
   parameters: Record<string, unknown>
 }
@@ -10,7 +17,7 @@ interface UnmountEvent {
   pluginSlug: string
 }
 
-type EventPayload = MountEvent | UnmountEvent
+type EventPayload = MountEvent | InvokeEvent | UnmountEvent
 type EventHandler = (payload: EventPayload) => void
 
 interface PendingInvocation {
@@ -81,6 +88,9 @@ export class PluginManager {
     if (needsMount) {
       this.emit('mount', { pluginSlug, toolName, parameters })
     }
+
+    // Always emit invoke so the container can send INVOKE_TOOL to the iframe
+    this.emit('invoke', { pluginSlug, invocationId, toolName, parameters })
 
     return promise
   }

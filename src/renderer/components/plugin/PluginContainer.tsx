@@ -37,29 +37,33 @@ export default function PluginContainer() {
   useEffect(() => {
     const offMount = pluginManager.on('mount', (payload) => {
       if (!('toolName' in payload)) return
-      const { pluginSlug, toolName, parameters } = payload
+      const { pluginSlug } = payload
 
       const plugin = pluginToolProviderInstance.getPlugins().find(p => p.appSlug === pluginSlug)
       if (!plugin) return
 
-      const invocationId = pluginManager.getLastInvocationId(pluginSlug)
-      if (!invocationId) return
-
-      // If this plugin is already active, just queue the invocation
-      if (activePlugin?.pluginSlug === pluginSlug) {
-        if (bridgeReadyRef.current && bridgeRef.current) {
-          bridgeRef.current.sendInvokeTool(invocationId, toolName, parameters)
-        } else {
-          pendingInvocationsRef.current.push({ invocationId, toolName, parameters })
-        }
-        setMinimized(false)
-        return
-      }
-
-      // New plugin — mount it
-      pendingInvocationsRef.current = [{ invocationId, toolName, parameters }]
+      // New plugin — reset iframe state and mount
+      pendingInvocationsRef.current = []
       bridgeReadyRef.current = false
       setActivePlugin({ pluginSlug, plugin })
+      setMinimized(false)
+    })
+
+    const offInvoke = pluginManager.on('invoke', (payload) => {
+      if (!('invocationId' in payload)) return
+      const { invocationId, toolName, parameters } = payload as {
+        pluginSlug: string
+        invocationId: string
+        toolName: string
+        parameters: Record<string, unknown>
+      }
+
+      // Send INVOKE_TOOL if bridge is ready, otherwise queue it
+      if (bridgeReadyRef.current && bridgeRef.current) {
+        bridgeRef.current.sendInvokeTool(invocationId, toolName, parameters)
+      } else {
+        pendingInvocationsRef.current.push({ invocationId, toolName, parameters })
+      }
       setMinimized(false)
     })
 
@@ -73,6 +77,7 @@ export default function PluginContainer() {
 
     return () => {
       offMount()
+      offInvoke()
       offUnmount()
     }
   }, [activePlugin, sendPendingInvocations])
@@ -101,9 +106,12 @@ export default function PluginContainer() {
       onError: (invocationId, code, message, recoverable) => {
         pluginManager.handleError(invocationId, code, message, recoverable)
       },
-      onTimeout: (_type, invocationId) => {
+      onTimeout: (type, invocationId) => {
         if (invocationId) {
           pluginManager.handleError(invocationId, 'INTERNAL_ERROR', 'Plugin timed out', false)
+        } else if (type === 'ready') {
+          // Iframe never sent READY — destroy session to reject all pending invocations
+          pluginManager.destroySession(activePlugin.pluginSlug)
         }
       },
     })
