@@ -3,14 +3,7 @@ import { test, expect } from '@playwright/test'
 const BASE = 'http://localhost:3000'
 
 test.describe('Spotify Plugin', () => {
-  test('loads and sends READY message', async ({ page }) => {
-    const readyPromise = new Promise<boolean>((resolve) => {
-      page.on('console', (msg) => {
-        // The plugin calls window.parent.postMessage which logs in some setups
-        // We check the DOM loads instead
-      })
-    })
-
+  test('loads and renders UI', async ({ page }) => {
     await page.goto(`${BASE}/plugins/spotify/index.html`)
     await expect(page.locator('.header h1')).toHaveText('Playlist Builder')
     await expect(page.locator('.search-input')).toBeVisible()
