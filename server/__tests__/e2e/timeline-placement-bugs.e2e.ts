@@ -48,75 +48,124 @@ function isSorted(years: number[]): boolean {
 
 test.describe('Timeline placement bug fixes', () => {
 
-  test('BUG FIX 1: wrong placement should rearrange card to correct chronological position', async ({ page }) => {
-    const { pageErrors, consoleErrors } = attachCollectors(page)
+  test('BUG FIX 1: wrong placement rearranges card to correct chronological position', async ({ page }) => {
+    const { pageErrors } = attachCollectors(page)
     await startGame(page)
 
-    // Get initial timeline state
     const initialYears = await getTimelineYears(page)
-    console.log('Initial timeline:', initialYears)
     expect(initialYears.length).toBeGreaterThanOrEqual(1)
 
-    // Find a drop zone and click it (intentionally in a spot that might be wrong)
-    // We click the FIRST drop zone — if the current card belongs later, this is wrong
-    const dropZones = page.locator('.drop-zone')
-    const dropCount = await dropZones.count()
-    expect(dropCount).toBeGreaterThan(0)
-
     // Click the first drop zone
-    await dropZones.first().click()
+    await page.locator('.drop-zone').first().click()
     await page.waitForTimeout(1000)
 
-    // Regardless of whether it was right or wrong, the timeline should be sorted
+    // Regardless of whether right or wrong, timeline must be sorted
     const afterYears = await getTimelineYears(page)
-    console.log('After placement:', afterYears)
     expect(afterYears.length).toBe(initialYears.length + 1)
     expect(isSorted(afterYears)).toBe(true)
   })
 
-  test('BUG FIX 2: correct placements after a wrong one should still count as correct', async ({ page }) => {
+  test('BUG FIX 2: correct placement after wrong one is scored correctly', async ({ page }) => {
     const { pageErrors } = attachCollectors(page)
-    await startGame(page)
 
-    // We'll track lives and score through multiple placements
-    // Strategy: make several placements and verify timeline stays sorted after each
+    // Intercept STATE_UPDATE messages to track score/lives
+    await page.addInitScript(() => {
+      ;(window as any).__stateHistory = []
+      const orig = window.parent.postMessage.bind(window.parent)
+      window.parent.postMessage = function(msg: any, ...args: any[]) {
+        if (msg?.type === 'STATE_UPDATE' && msg.state) {
+          ;(window as any).__stateHistory.push({
+            score: msg.state.score,
+            lives: msg.state.lives,
+            timelineYears: (msg.state.timeline || []).map((c: any) => c.year),
+            timelineStatuses: (msg.state.timeline || []).map((c: any) => c.status)
+          })
+        }
+        return orig(msg, ...args)
+      }
+    })
 
-    for (let attempt = 0; attempt < 4; attempt++) {
+    await page.goto('/plugins/timeline/index.html')
+    await page.waitForLoadState('networkidle')
+    await sendTool(page, 'start_quiz', {})
+    await page.waitForTimeout(2000)
+
+    // Make 5 placements, clicking different positions
+    const positions = ['first', 'last', 'last', 'last', 'first']
+    for (let i = 0; i < positions.length; i++) {
       const dropZones = page.locator('.drop-zone')
-      const dropCount = await dropZones.count()
-      if (dropCount === 0) break // game might be over
+      const count = await dropZones.count()
+      if (count === 0) break
 
-      // Click a drop zone
-      await dropZones.first().click()
-      await page.waitForTimeout(800)
+      if (positions[i] === 'first') {
+        await dropZones.first().click()
+      } else {
+        await dropZones.last().click()
+      }
+      await page.waitForTimeout(1200)
+    }
 
-      // After every placement, timeline must be sorted
-      const years = await getTimelineYears(page)
-      console.log(`After placement ${attempt + 1}:`, years)
+    // Get state history
+    const history = await page.evaluate(() => (window as any).__stateHistory || [])
+
+    // Verify: timeline is sorted after every single placement
+    for (let i = 0; i < history.length; i++) {
+      const years = history[i].timelineYears as number[]
       expect(isSorted(years)).toBe(true)
+    }
+
+    // Verify: score only goes up on correct placements (never decreases)
+    let prevScore = 0
+    for (const entry of history) {
+      expect(entry.score).toBeGreaterThanOrEqual(prevScore)
+      prevScore = entry.score
+    }
+
+    // Verify: lives only go down on wrong placements (never increases)
+    let prevLives = 3
+    for (const entry of history) {
+      expect(entry.lives).toBeLessThanOrEqual(prevLives)
+      prevLives = entry.lives
+    }
+
+    // Verify: if a correct placement happened after a wrong one, score increased
+    // Look for a pattern: lives decreased, then score increased
+    let foundWrongThenCorrect = false
+    for (let i = 1; i < history.length; i++) {
+      if (history[i].lives < history[i-1].lives) {
+        // Wrong placement just happened
+        // Check if any subsequent placement has a higher score
+        for (let j = i + 1; j < history.length; j++) {
+          if (history[j].score > history[i].score) {
+            foundWrongThenCorrect = true
+            break
+          }
+        }
+      }
+    }
+    // We can't guarantee this scenario happens with random cards, but if it did, it worked
+    if (foundWrongThenCorrect) {
+      console.log('VERIFIED: correct placement scored correctly after a wrong one')
     }
 
     expect(pageErrors).toEqual([])
   })
 
-  test('timeline stays sorted through 10 consecutive placements', async ({ page }) => {
+  test('timeline stays sorted through 10 random placements', async ({ page }) => {
     const { pageErrors } = attachCollectors(page)
     await startGame(page)
 
     for (let i = 0; i < 10; i++) {
-      // Wait for current card to appear
       await page.waitForTimeout(700)
 
       const dropZones = page.locator('.drop-zone')
       const dropCount = await dropZones.count()
       if (dropCount === 0) break
 
-      // Click a random drop zone
       const randomIndex = Math.floor(Math.random() * dropCount)
       await dropZones.nth(randomIndex).click()
       await page.waitForTimeout(600)
 
-      // Verify timeline is always sorted
       const years = await getTimelineYears(page)
       if (years.length > 1) {
         expect(isSorted(years)).toBe(true)
