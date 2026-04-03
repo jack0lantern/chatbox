@@ -632,10 +632,15 @@
         return candidate[i - 1].year <= c.year;
       });
 
+      // Always insert at the CORRECT chronological position in the timeline
+      // This fixes bug where wrong placements left cards in the wrong spot
+      const correctTimeline = [...timeline];
+      const correctIndex = correctTimeline.findIndex(c => c.year > currentCard.year);
+      const actualInsertIndex = correctIndex === -1 ? correctTimeline.length : correctIndex;
       const status = isCorrect ? 'correct-placed' : 'wrong-placed';
-      const newTimeline = candidate.map((c, i) => (c.id === currentCard.id ? { ...c, status } : c));
+      correctTimeline.splice(actualInsertIndex, 0, { ...currentCard, status });
 
-      setTimeline(newTimeline);
+      setTimeline(correctTimeline);
       setNewCardIds(new Set([currentCard.id]));
       setHint(null);
 
