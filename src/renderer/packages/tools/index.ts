@@ -1,6 +1,16 @@
 import { t } from 'i18next'
 
 export function getToolName(toolName: string): string {
+  // Handle plugin tool names: plugin__chess__start_game → Start Game
+  if (toolName.startsWith('plugin__')) {
+    const parts = toolName.split('__')
+    const rawName = parts[2] || toolName
+    return rawName
+      .split('_')
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ')
+  }
+
   // Use translation keys that i18next cli can detect
   const toolNames: Record<string, string> = {
     query_knowledge_base: t('Query Knowledge Base'),
@@ -18,4 +28,13 @@ export function getToolName(toolName: string): string {
   }
 
   return toolNames[toolName] || toolName
+}
+
+export function isPluginTool(toolName: string): boolean {
+  return toolName.startsWith('plugin__')
+}
+
+export function getPluginSlug(toolName: string): string | null {
+  if (!toolName.startsWith('plugin__')) return null
+  return toolName.split('__')[1] || null
 }
