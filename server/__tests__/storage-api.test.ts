@@ -91,4 +91,70 @@ describe('Storage API', () => {
     const body = await res.json()
     expect(body).toEqual({ error: 'Unauthorized' })
   })
+
+  it('overwrites existing value when PUTting same key twice', async () => {
+    await PUT(makeRequest({ value: 'original' }), makeKeyContext('overwrite-key'))
+    await PUT(makeRequest({ value: 'updated' }), makeKeyContext('overwrite-key'))
+
+    const res = await GET(makeRequest(), makeKeyContext('overwrite-key'))
+    const body = await res.json()
+    expect(body).toEqual({ value: 'updated' })
+
+    // Confirm only one row exists for this key
+    const rows = await prisma.userStorage.findMany({
+      where: { userId: TEST_USER_ID, key: 'overwrite-key' },
+    })
+    expect(rows).toHaveLength(1)
+  })
+
+  it('stores and retrieves a JSON object value', async () => {
+    const complexObj = { a: 1, b: 'hello', c: true, d: null, e: { nested: 'value' } }
+    await PUT(makeRequest({ value: complexObj }), makeKeyContext('json-obj'))
+
+    const res = await GET(makeRequest(), makeKeyContext('json-obj'))
+    const body = await res.json()
+    expect(body.value).toEqual(complexObj)
+  })
+
+  it('stores and retrieves an array value', async () => {
+    const arr = [1, 'two', { three: 3 }, [4, 5]]
+    await PUT(makeRequest({ value: arr }), makeKeyContext('array-key'))
+
+    const res = await GET(makeRequest(), makeKeyContext('array-key'))
+    const body = await res.json()
+    expect(body.value).toEqual(arr)
+  })
+
+  it('stores and retrieves a deeply nested object', async () => {
+    const deep = { level1: { level2: { level3: { level4: 'deep' } } } }
+    await PUT(makeRequest({ value: deep }), makeKeyContext('nested-key'))
+
+    const res = await GET(makeRequest(), makeKeyContext('nested-key'))
+    const body = await res.json()
+    expect(body.value).toEqual(deep)
+  })
+
+  it('handles URL-encoded key names with special characters like session:abc-123', async () => {
+    const specialKey = 'session:abc-123'
+    await PUT(makeRequest({ value: 'session-data' }), makeKeyContext(specialKey))
+
+    const res = await GET(makeRequest(), makeKeyContext(specialKey))
+    const body = await res.json()
+    expect(body.value).toBe('session-data')
+  })
+
+  it('handles keys with slashes and spaces', async () => {
+    const slashKey = 'user/settings/theme'
+    await PUT(makeRequest({ value: 'light' }), makeKeyContext(slashKey))
+
+    const res = await GET(makeRequest(), makeKeyContext(slashKey))
+    const body = await res.json()
+    expect(body.value).toBe('light')
+  })
+
+  it('GET all returns empty object when no keys exist', async () => {
+    const res = await getAll()
+    const body = await res.json()
+    expect(body).toEqual({})
+  })
 })

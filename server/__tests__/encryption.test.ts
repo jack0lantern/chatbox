@@ -20,4 +20,18 @@ describe('encryption', () => {
     const encrypted = encrypt('')
     expect(decrypt(encrypted)).toBe('')
   })
+
+  it('round-trips a long string (simulated real API key)', () => {
+    // Simulate a realistic API key like an Anthropic or OpenAI key
+    const longKey = 'sk-ant-api03-' + 'A'.repeat(80) + 'AAAA'
+    const encrypted = encrypt(longKey)
+    expect(encrypted).not.toBe(longKey)
+    expect(decrypt(encrypted)).toBe(longKey)
+  })
+
+  it('round-trips a string with special characters and unicode', () => {
+    const special = 'pàssw0rd!@#$%^&*()_+[]{}|;\':",.<>?/`~ 日本語 🔑 \n\t'
+    const encrypted = encrypt(special)
+    expect(decrypt(encrypted)).toBe(special)
+  })
 })
