@@ -7,10 +7,18 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script>
-    // chess.js CJS shim — the CDN version uses exports.Chess, so we create a fake exports object
-    var exports = {};
+    (function loadChessjs() {
+      var exports = {};
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', 'https://unpkg.com/chess.js@1.0.0-beta.8/dist/cjs/chess.js', false);
+      xhr.send();
+      if (xhr.status < 200 || xhr.status >= 300) {
+        throw new Error('chess.js CDN load failed: HTTP ' + xhr.status);
+      }
+      new Function('exports', xhr.responseText)(exports);
+      window.Chess = exports.Chess;
+    })();
   </script>
-  <script src="https://unpkg.com/chess.js@1.0.0-beta.8/dist/cjs/chess.js" crossorigin></script>
   <style>
     :root {
       --bg: #1a1b2e;
