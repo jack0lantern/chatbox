@@ -1,10 +1,10 @@
-import { PrismaAdapter } from '@auth/prisma-adapter'
 import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { prisma } from './prisma'
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  // PrismaAdapter will be added back in Phase 4 when we need OAuth (Spotify).
+  // Credentials provider + JWT strategy doesn't need a database adapter.
   providers: [
     CredentialsProvider({
       name: 'Email',
