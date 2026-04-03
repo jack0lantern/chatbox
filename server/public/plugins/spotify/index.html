@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spotify Playlist Builder</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #121212;
+      color: #fff;
+      min-height: 100vh;
+    }
+
+    .app {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid #282828;
+      margin-bottom: 16px;
+    }
+
+    .header svg { width: 28px; height: 28px; fill: #1DB954; }
+    .header h1 { font-size: 20px; font-weight: 700; }
+
+    /* Search */
+    .search-section { margin-bottom: 20px; }
+
+    .search-input {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #282828;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input:focus { border-color: #1DB954; }
+    .search-input::placeholder { color: #888; }
+
+    .search-results {
+      margin-top: 12px;
+      max-height: 360px;
+      overflow-y: auto;
+    }
+
+    .search-results::-webkit-scrollbar { width: 6px; }
+    .search-results::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+
+    /* Track row */
+    .track-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+
+    .track-row:hover { background: #282828; }
+
+    .track-art {
+      width: 48px;
+      height: 48px;
+      border-radius: 4px;
+      object-fit: cover;
+      background: #333;
+      flex-shrink: 0;
+    }
+
+    .track-info { flex: 1; min-width: 0; }
+    .track-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .track-artist { font-size: 12px; color: #b3b3b3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .track-album { font-size: 11px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .track-duration {
+      font-size: 12px;
+      color: #b3b3b3;
+      flex-shrink: 0;
+      min-width: 40px;
+      text-align: right;
+    }
+
+    .track-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+    /* Buttons */
+    .btn {
+      padding: 6px 12px;
+      border-radius: 20px;
+      border: none;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-add { background: #1DB954; color: #fff; }
+    .btn-add:hover { background: #1ed760; transform: scale(1.05); }
+    .btn-add:disabled { background: #333; color: #666; cursor: default; transform: none; }
+
+    .btn-preview { background: transparent; color: #b3b3b3; border: 1px solid #444; }
+    .btn-preview:hover { color: #fff; border-color: #888; }
+    .btn-preview.playing { color: #1DB954; border-color: #1DB954; }
+
+    .btn-remove { background: transparent; color: #b3b3b3; border: none; font-size: 18px; padding: 4px 8px; }
+    .btn-remove:hover { color: #ff4444; }
+
+    .btn-create {
+      background: #1DB954;
+      color: #fff;
+      padding: 12px 32px;
+      border-radius: 24px;
+      border: none;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      width: 100%;
+    }
+
+    .btn-create:hover { background: #1ed760; transform: scale(1.02); }
+    .btn-create:disabled { background: #333; color: #666; cursor: default; transform: none; }
+
+    /* Playlist builder */
+    .playlist-section {
+      background: #181818;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .playlist-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .playlist-name-input {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #282828;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      outline: none;
+    }
+
+    .playlist-name-input:focus { border-color: #1DB954; }
+
+    .playlist-count {
+      font-size: 12px;
+      color: #b3b3b3;
+      flex-shrink: 0;
+    }
+
+    .playlist-tracks { min-height: 40px; }
+
+    .playlist-track {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 8px;
+      border-radius: 4px;
+      cursor: grab;
+      transition: background 0.15s;
+    }
+
+    .playlist-track:hover { background: #282828; }
+    .playlist-track.dragging { opacity: 0.4; }
+    .playlist-track.drag-over { border-top: 2px solid #1DB954; }
+
+    .drag-handle {
+      color: #666;
+      cursor: grab;
+      font-size: 14px;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .playlist-empty {
+      text-align: center;
+      color: #666;
+      padding: 24px;
+      font-size: 13px;
+    }
+
+    .playlist-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #282828;
+    }
+
+    .total-duration { font-size: 12px; color: #b3b3b3; }
+
+    /* Created playlist */
+    .created-section {
+      background: #181818;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .created-cover {
+      width: 80px;
+      height: 80px;
+      border-radius: 4px;
+      background: #282828;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+
+    .created-info { flex: 1; }
+    .created-name { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .created-meta { font-size: 13px; color: #b3b3b3; margin-bottom: 8px; }
+
+    .btn-open {
+      display: inline-block;
+      background: #1DB954;
+      color: #fff;
+      padding: 8px 20px;
+      border-radius: 20px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+
+    .btn-open:hover { background: #1ed760; }
+
+    /* Status bar */
+    .status-bar {
+      font-size: 12px;
+      color: #666;
+      padding: 8px 0;
+      text-align: center;
+    }
+
+    .status-bar.error { color: #ff4444; }
+    .status-bar.connected { color: #1DB954; }
+
+    /* Loading */
+    .loading {
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid #333;
+      border-top: 3px solid #1DB954;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Section label */
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #b3b3b3;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    'use strict';
+    const { useState, useEffect, useRef, useCallback, createElement: h } = React;
+
+    // -- postMessage bridge --------------------------------------------------
+
+    let requestCounter = 0;
+    const pendingRequests = new Map();
+
+    function sendMessage(msg) {
+      window.parent.postMessage(msg, '*');
+    }
+
+    function sendReady() {
+      sendMessage({ type: 'READY', invocationId: null, payload: {} });
+    }
+
+    function sendTaskComplete(invocationId, result) {
+      sendMessage({ type: 'TASK_COMPLETE', invocationId, payload: { result } });
+    }
+
+    function sendStateUpdate(invocationId, state) {
+      sendMessage({ type: 'STATE_UPDATE', invocationId, payload: { state } });
+    }
+
+    function sendError(invocationId, code, message, recoverable) {
+      sendMessage({
+        type: 'ERROR',
+        invocationId,
+        payload: { code, message, recoverable: recoverable ?? false },
+      });
+    }
+
+    function apiRequest(action, params) {
+      return new Promise((resolve, reject) => {
+        const requestId = 'req_' + (++requestCounter) + '_' + Date.now();
+        pendingRequests.set(requestId, { resolve, reject });
+        sendMessage({
+          type: 'API_REQUEST',
+          requestId,
+          payload: { action, params },
+        });
+        setTimeout(() => {
+          if (pendingRequests.has(requestId)) {
+            pendingRequests.delete(requestId);
+            reject(new Error('API request timeout'));
+          }
+        }, 35000);
+      });
+    }
+
+    // -- Utilities -----------------------------------------------------------
+
+    function formatDuration(ms) {
+      const mins = Math.floor(ms / 60000);
+      const secs = Math.floor((ms % 60000) / 1000);
+      return mins + ':' + (secs < 10 ? '0' : '') + secs;
+    }
+
+    function formatTotalDuration(tracks) {
+      const total = tracks.reduce((sum, t) => sum + (t.duration || 0), 0);
+      const mins = Math.floor(total / 60000);
+      if (mins < 60) return mins + ' min';
+      const hrs = Math.floor(mins / 60);
+      return hrs + ' hr ' + (mins % 60) + ' min';
+    }
+
+    // -- Spotify icon SVG ----------------------------------------------------
+
+    function SpotifyIcon() {
+      return h('svg', { viewBox: '0 0 24 24', xmlns: 'http://www.w3.org/2000/svg' },
+        h('path', { d: 'M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381C8.64 5.801 15.6 6.081 20.04 8.94c.6.36.78 1.02.42 1.56-.36.48-1.08.66-1.62.36z' })
+      );
+    }
+
+    // -- Track component (search result) -------------------------------------
+
+    function TrackResult({ track, onAdd, isAdded, playingId, onTogglePreview }) {
+      return h('div', { className: 'track-row' },
+        h('img', {
+          className: 'track-art',
+          src: track.albumArt || '',
+          alt: '',
+          onError: function(e) { e.target.style.visibility = 'hidden'; },
+        }),
+        h('div', { className: 'track-info' },
+          h('div', { className: 'track-name' }, track.name),
+          h('div', { className: 'track-artist' }, track.artist),
+          h('div', { className: 'track-album' }, track.album)
+        ),
+        h('span', { className: 'track-duration' }, formatDuration(track.duration)),
+        h('div', { className: 'track-actions' },
+          track.previewUrl
+            ? h('button', {
+                className: 'btn btn-preview' + (playingId === track.id ? ' playing' : ''),
+                onClick: function() { onTogglePreview(track); },
+              }, playingId === track.id ? '\u23F8' : '\u25B6')
+            : null,
+          h('button', {
+            className: 'btn btn-add',
+            onClick: function() { onAdd(track); },
+            disabled: isAdded,
+          }, isAdded ? 'Added' : '+ Add')
+        )
+      );
+    }
+
+    // -- Playlist track component (draggable) --------------------------------
+
+    function PlaylistTrack({ track, index, onRemove, onDragStart, onDragOver, onDrop, dragOverIndex }) {
+      return h('div', {
+        className: 'playlist-track' + (dragOverIndex === index ? ' drag-over' : ''),
+        draggable: true,
+        onDragStart: function(e) {
+          e.dataTransfer.effectAllowed = 'move';
+          onDragStart(index);
+        },
+        onDragOver: function(e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          onDragOver(index);
+        },
+        onDrop: function(e) {
+          e.preventDefault();
+          onDrop(index);
+        },
+        onDragEnd: function() { onDragOver(-1); },
+      },
+        h('span', { className: 'drag-handle' }, '\u2630'),
+        h('img', {
+          className: 'track-art',
+          src: track.albumArt || '',
+          alt: '',
+          style: { width: '40px', height: '40px' },
+          onError: function(e) { e.target.style.visibility = 'hidden'; },
+        }),
+        h('div', { className: 'track-info' },
+          h('div', { className: 'track-name' }, track.name),
+          h('div', { className: 'track-artist' }, track.artist)
+        ),
+        h('span', { className: 'track-duration' }, formatDuration(track.duration)),
+        h('button', {
+          className: 'btn btn-remove',
+          onClick: function() { onRemove(index); },
+          title: 'Remove',
+        }, '\u00D7')
+      );
+    }
+
+    // -- Created playlist display --------------------------------------------
+
+    function CreatedPlaylist({ playlist }) {
+      return h('div', { className: 'created-section' },
+        playlist.coverImageUrl
+          ? h('img', { className: 'created-cover', src: playlist.coverImageUrl, alt: '' })
+          : h('div', { className: 'created-cover' }),
+        h('div', { className: 'created-info' },
+          h('div', { className: 'created-name' }, playlist.name),
+          h('div', { className: 'created-meta' }, playlist.trackCount + ' tracks'),
+          h('a', {
+            className: 'btn-open',
+            href: playlist.playlistUrl,
+            target: '_blank',
+            rel: 'noopener noreferrer',
+          }, 'Open in Spotify')
+        )
+      );
+    }
+
+    // -- Main App ------------------------------------------------------------
+
+    function App() {
+      const [searchQuery, setSearchQuery] = useState('');
+      const [searchResults, setSearchResults] = useState([]);
+      const [searching, setSearching] = useState(false);
+      const [playlistName, setPlaylistName] = useState('My Playlist');
+      const [playlistTracks, setPlaylistTracks] = useState([]);
+      const [createdPlaylists, setCreatedPlaylists] = useState([]);
+      const [creating, setCreating] = useState(false);
+      const [playingId, setPlayingId] = useState(null);
+      const [dragFromIndex, setDragFromIndex] = useState(-1);
+      const [dragOverIndex, setDragOverIndex] = useState(-1);
+      const [status, setStatus] = useState({ text: 'Ready', type: '' });
+      const [currentInvocationId, setCurrentInvocationId] = useState(null);
+
+      const audioRef = useRef(null);
+      const searchTimerRef = useRef(null);
+
+      // Debounced search
+      useEffect(function() {
+        if (!searchQuery.trim()) {
+          setSearchResults([]);
+          return;
+        }
+        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+        searchTimerRef.current = setTimeout(function() {
+          doSearch(searchQuery.trim());
+        }, 300);
+        return function() {
+          if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+        };
+      }, [searchQuery]);
+
+      async function doSearch(query) {
+        setSearching(true);
+        try {
+          var response = await apiRequest('search_songs', { query: query });
+          if (response.error) {
+            if (response.error.code === 'AUTH_REQUIRED') {
+              setStatus({ text: 'Spotify account not connected', type: 'error' });
+              sendError(currentInvocationId, 'UPSTREAM_ERROR', 'Spotify account not connected', false);
+            } else {
+              setStatus({ text: response.error.message || 'Search failed', type: 'error' });
+            }
+            setSearchResults([]);
+          } else {
+            setSearchResults(response.data || []);
+            setStatus({ text: 'Connected', type: 'connected' });
+          }
+        } catch (err) {
+          setStatus({ text: 'Search failed: ' + err.message, type: 'error' });
+          setSearchResults([]);
+        }
+        setSearching(false);
+      }
+
+      // Add track to playlist
+      function addTrack(track) {
+        if (playlistTracks.some(function(t) { return t.uri === track.uri; })) return;
+        var next = playlistTracks.concat([track]);
+        setPlaylistTracks(next);
+        saveState(next);
+      }
+
+      // Remove track from playlist
+      function removeTrack(index) {
+        var next = playlistTracks.filter(function(_, i) { return i !== index; });
+        setPlaylistTracks(next);
+        saveState(next);
+      }
+
+      // Drag and drop reorder
+      function handleDrop(dropIndex) {
+        if (dragFromIndex < 0 || dragFromIndex === dropIndex) {
+          setDragOverIndex(-1);
+          return;
+        }
+        var next = playlistTracks.slice();
+        var moved = next.splice(dragFromIndex, 1)[0];
+        next.splice(dropIndex, 0, moved);
+        setPlaylistTracks(next);
+        setDragFromIndex(-1);
+        setDragOverIndex(-1);
+        saveState(next);
+      }
+
+      // Audio preview
+      function togglePreview(track) {
+        if (!track.previewUrl) return;
+        if (playingId === track.id) {
+          if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+          setPlayingId(null);
+        } else {
+          if (audioRef.current) audioRef.current.pause();
+          var audio = new Audio(track.previewUrl);
+          audio.volume = 0.5;
+          audio.play().catch(function() {});
+          audio.onended = function() { setPlayingId(null); audioRef.current = null; };
+          audioRef.current = audio;
+          setPlayingId(track.id);
+        }
+      }
+
+      // Create playlist
+      async function createPlaylist() {
+        if (!playlistTracks.length || !playlistName.trim()) return;
+        setCreating(true);
+        setStatus({ text: 'Creating playlist...', type: '' });
+        try {
+          var response = await apiRequest('create_playlist', {
+            playlistName: playlistName.trim(),
+            songs: playlistTracks.map(function(t) { return t.uri; }),
+          });
+          if (response.error) {
+            setStatus({ text: response.error.message || 'Create failed', type: 'error' });
+          } else {
+            var created = {
+              playlistId: response.data.playlistId,
+              playlistUrl: response.data.playlistUrl,
+              trackCount: response.data.trackCount,
+              coverImageUrl: response.data.coverImageUrl,
+              name: playlistName.trim(),
+            };
+            setCreatedPlaylists(function(prev) { return [created].concat(prev); });
+            setStatus({ text: 'Playlist created!', type: 'connected' });
+            sendTaskComplete(currentInvocationId, {
+              playlistUrl: created.playlistUrl,
+              playlistId: created.playlistId,
+              trackCount: created.trackCount,
+              playlistName: created.name,
+            });
+            setPlaylistTracks([]);
+            setPlaylistName('My Playlist');
+          }
+        } catch (err) {
+          setStatus({ text: 'Create failed: ' + err.message, type: 'error' });
+        }
+        setCreating(false);
+      }
+
+      // Save state via postMessage
+      function saveState(tracks) {
+        sendStateUpdate(currentInvocationId, {
+          playlistName: playlistName,
+          tracks: (tracks || playlistTracks).map(function(t) {
+            return { uri: t.uri, name: t.name, artist: t.artist, albumArt: t.albumArt, duration: t.duration };
+          }),
+          createdPlaylists: createdPlaylists,
+        });
+      }
+
+      // Handle incoming messages
+      useEffect(function() {
+        function handleMessage(event) {
+          var data = event.data;
+          if (!data || !data.type) return;
+
+          switch (data.type) {
+            case 'INVOKE_TOOL': {
+              var inv = data.invocationId;
+              setCurrentInvocationId(inv);
+              var tool = data.payload.toolName;
+              var params = data.payload.parameters || {};
+
+              if (tool === 'search_songs') {
+                setSearchQuery(params.query || '');
+                doSearch(params.query || '').then(function() {
+                  sendTaskComplete(inv, { message: 'Search results displayed', query: params.query });
+                });
+              } else if (tool === 'create_playlist') {
+                if (params.songs && params.songs.length) {
+                  setPlaylistName(params.playlistName || 'My Playlist');
+                  setStatus({ text: 'Searching for songs...', type: '' });
+                  // Search and auto-add each song
+                  Promise.all(params.songs.map(function(songName) {
+                    return apiRequest('search_songs', { query: songName }).then(function(res) {
+                      if (res.data && res.data.length > 0) return res.data[0];
+                      return null;
+                    }).catch(function() { return null; });
+                  })).then(function(results) {
+                    var found = results.filter(Boolean);
+                    setPlaylistTracks(found);
+                    if (found.length > 0) {
+                      setStatus({ text: found.length + ' songs found, ready to create', type: 'connected' });
+                    } else {
+                      setStatus({ text: 'No songs found', type: 'error' });
+                    }
+                    sendTaskComplete(inv, {
+                      message: found.length + ' songs found and added to playlist draft',
+                      tracksFound: found.length,
+                      tracksRequested: params.songs.length,
+                    });
+                  });
+                } else {
+                  sendTaskComplete(inv, { message: 'Playlist builder ready', playlistName: params.playlistName });
+                }
+              } else if (tool === 'add_to_playlist') {
+                sendTaskComplete(inv, { message: 'Use the playlist builder to add songs' });
+              } else {
+                sendError(inv, 'INVALID_PARAMS', 'Unknown tool: ' + tool, false);
+              }
+              break;
+            }
+            case 'STATE_RESTORE': {
+              var state = data.payload && data.payload.state;
+              if (state) {
+                if (state.playlistName) setPlaylistName(state.playlistName);
+                if (state.tracks) setPlaylistTracks(state.tracks);
+                if (state.createdPlaylists) setCreatedPlaylists(state.createdPlaylists);
+              }
+              break;
+            }
+            case 'API_RESPONSE': {
+              var pending = pendingRequests.get(data.requestId);
+              if (pending) {
+                pendingRequests.delete(data.requestId);
+                if (data.payload.error) {
+                  pending.resolve({ error: data.payload.error, data: null });
+                } else {
+                  pending.resolve({ data: data.payload.data, error: null });
+                }
+              }
+              break;
+            }
+            case 'DESTROY': {
+              if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+              break;
+            }
+          }
+        }
+
+        window.addEventListener('message', handleMessage);
+        return function() { window.removeEventListener('message', handleMessage); };
+      }, [playlistTracks, createdPlaylists, playlistName, currentInvocationId]);
+
+      // Track URIs in playlist for "already added" check
+      var addedUris = {};
+      playlistTracks.forEach(function(t) { addedUris[t.uri] = true; });
+
+      return h('div', { className: 'app' },
+        // Header
+        h('div', { className: 'header' },
+          h(SpotifyIcon),
+          h('h1', null, 'Playlist Builder')
+        ),
+
+        // Created playlists
+        createdPlaylists.map(function(pl, i) {
+          return h(CreatedPlaylist, { key: 'created-' + i, playlist: pl });
+        }),
+
+        // Search
+        h('div', { className: 'search-section' },
+          h('div', { className: 'section-label' }, 'Search'),
+          h('input', {
+            className: 'search-input',
+            type: 'text',
+            placeholder: 'Search for songs...',
+            value: searchQuery,
+            onChange: function(e) { setSearchQuery(e.target.value); },
+          }),
+          searching
+            ? h('div', { className: 'loading' }, h('div', { className: 'spinner' }))
+            : h('div', { className: 'search-results' },
+                searchResults.map(function(track) {
+                  return h(TrackResult, {
+                    key: track.id,
+                    track: track,
+                    onAdd: addTrack,
+                    isAdded: !!addedUris[track.uri],
+                    playingId: playingId,
+                    onTogglePreview: togglePreview,
+                  });
+                })
+              )
+        ),
+
+        // Playlist builder
+        h('div', { className: 'playlist-section' },
+          h('div', { className: 'playlist-header' },
+            h('input', {
+              className: 'playlist-name-input',
+              type: 'text',
+              placeholder: 'Playlist name',
+              value: playlistName,
+              onChange: function(e) { setPlaylistName(e.target.value); },
+            }),
+            h('span', { className: 'playlist-count' },
+              playlistTracks.length + (playlistTracks.length === 1 ? ' track' : ' tracks')
+            )
+          ),
+          h('div', { className: 'playlist-tracks' },
+            playlistTracks.length === 0
+              ? h('div', { className: 'playlist-empty' }, 'Search for songs and click "+ Add" to build your playlist')
+              : playlistTracks.map(function(track, i) {
+                  return h(PlaylistTrack, {
+                    key: track.uri + '-' + i,
+                    track: track,
+                    index: i,
+                    onRemove: removeTrack,
+                    onDragStart: function(idx) { setDragFromIndex(idx); },
+                    onDragOver: function(idx) { setDragOverIndex(idx); },
+                    onDrop: handleDrop,
+                    dragOverIndex: dragOverIndex,
+                  });
+                })
+          ),
+          playlistTracks.length > 0
+            ? h('div', { className: 'playlist-footer' },
+                h('span', { className: 'total-duration' }, formatTotalDuration(playlistTracks)),
+                h('button', {
+                  className: 'btn-create',
+                  onClick: createPlaylist,
+                  disabled: creating || !playlistName.trim(),
+                  style: { width: 'auto' },
+                }, creating ? 'Creating...' : 'Create Playlist')
+              )
+            : null
+        ),
+
+        // Status bar
+        h('div', { className: 'status-bar ' + status.type }, status.text)
+      );
+    }
+
+    // -- Boot ----------------------------------------------------------------
+
+    ReactDOM.render(h(App), document.getElementById('root'));
+    sendReady();
+  </script>
+</body>
+</html>
