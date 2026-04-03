@@ -72,4 +72,45 @@ describe('llm-proxy', () => {
     const body = JSON.parse(result.body)
     expect(body.tools).toEqual(tools)
   })
+
+  it('getProviderConfig returns null when settings key does not exist', async () => {
+    // No UserStorage row created at all
+    const config = await getProviderConfig(TEST_USER_ID, 'openai')
+    expect(config).toBeNull()
+  })
+
+  it('getProviderConfig returns null when apiKey field is missing from provider config', async () => {
+    await prisma.userStorage.create({
+      data: {
+        userId: TEST_USER_ID,
+        key: 'settings',
+        value: { providers: { openai: { apiHost: 'https://api.openai.com' } } },
+      },
+    })
+    const config = await getProviderConfig(TEST_USER_ID, 'openai')
+    expect(config).toBeNull()
+  })
+
+  it('buildProviderRequest does NOT include tools key when tools is undefined', () => {
+    const result = buildProviderRequest('openai', {
+      provider: 'openai', model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: 'hello' }],
+      // tools intentionally omitted
+    }, 'sk-test')
+    const body = JSON.parse(result.body)
+    expect('tools' in body).toBe(false)
+  })
+
+  it('buildProviderRequest handles missing optional fields (temperature, topP undefined)', () => {
+    const result = buildProviderRequest('openai', {
+      provider: 'openai', model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: 'hello' }],
+      // temperature and topP intentionally omitted
+    }, 'sk-test')
+    const body = JSON.parse(result.body)
+    expect(body.model).toBe('gpt-4o-mini')
+    expect(body.stream).toBe(true)
+    expect(body.temperature).toBeUndefined()
+    expect(body.top_p).toBeUndefined()
+  })
 })
