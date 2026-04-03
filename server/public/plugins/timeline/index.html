@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Timeline Quiz</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #f1f5f9;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    #root { min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── Top Bar ── */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      flex-shrink: 0;
+    }
+    .top-bar h1 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: #f8fafc;
+    }
+    .top-bar-stats {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+    .stat-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .stat-badge .label {
+      color: #94a3b8;
+      font-weight: 400;
+    }
+    .stat-badge .value {
+      color: #f8fafc;
+    }
+    .hearts { display: flex; gap: 4px; }
+    .heart { font-size: 1.1rem; transition: transform 0.2s; }
+    .heart.lost { filter: grayscale(1); opacity: 0.3; }
+
+    /* ── Main Content ── */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      gap: 20px;
+      overflow: hidden;
+    }
+
+    /* ── Current Card ── */
+    .current-card-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .current-card-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #64748b;
+    }
+    .current-card {
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      border-radius: 16px;
+      padding: 18px 28px;
+      min-width: 260px;
+      max-width: 420px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(59,130,246,0.35);
+      position: relative;
+      transition: transform 0.15s;
+    }
+    .current-card .event-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      line-height: 1.4;
+      color: #fff;
+    }
+    .current-card .category-badge {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 2px 10px;
+      border-radius: 100px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.9);
+    }
+    .current-card.correct-flash {
+      animation: correctFlash 0.6s ease;
+    }
+    .current-card.wrong-flash {
+      animation: wrongFlash 0.6s ease;
+    }
+    @keyframes correctFlash {
+      0%, 100% { background: linear-gradient(135deg, #3b82f6, #6366f1); }
+      40% { background: linear-gradient(135deg, #22c55e, #16a34a); transform: scale(1.04); }
+    }
+    @keyframes wrongFlash {
+      0%, 100% { background: linear-gradient(135deg, #3b82f6, #6366f1); transform: translateX(0); }
+      15% { background: linear-gradient(135deg, #ef4444, #dc2626); transform: translateX(-8px); }
+      30% { transform: translateX(8px); }
+      45% { transform: translateX(-5px); }
+      60% { transform: translateX(5px); }
+    }
+
+    /* ── Instruction text ── */
+    .instruction {
+      font-size: 0.85rem;
+      color: #64748b;
+      text-align: center;
+    }
+
+    /* ── Timeline Area ── */
+    .timeline-area {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    .timeline-scroll {
+      overflow-x: auto;
+      overflow-y: visible;
+      padding: 20px 16px 12px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .timeline-scroll::-webkit-scrollbar { height: 4px; }
+    .timeline-scroll::-webkit-scrollbar-track { background: #1e293b; }
+    .timeline-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+
+    .timeline-inner {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      min-width: max-content;
+      padding-bottom: 4px;
+    }
+
+    /* ── Drop Zone ── */
+    .drop-zone {
+      width: 12px;
+      height: 90px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      position: relative;
+      transition: width 0.15s ease;
+    }
+    .drop-zone:hover {
+      width: 40px;
+    }
+    .drop-zone-line {
+      width: 3px;
+      height: 70px;
+      background: #334155;
+      border-radius: 2px;
+      transition: background 0.15s, width 0.15s, height 0.15s;
+    }
+    .drop-zone:hover .drop-zone-line {
+      background: #6366f1;
+      height: 90px;
+      width: 4px;
+      box-shadow: 0 0 12px rgba(99,102,241,0.6);
+    }
+    .drop-zone-arrow {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.2rem;
+      color: #6366f1;
+      pointer-events: none;
+    }
+    .drop-zone:hover .drop-zone-arrow {
+      display: block;
+    }
+    .drop-zone:hover .drop-zone-line {
+      opacity: 0;
+    }
+
+    /* ── Timeline Card ── */
+    .timeline-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 10px 14px;
+      width: 130px;
+      flex-shrink: 0;
+      text-align: center;
+      position: relative;
+      transition: transform 0.2s;
+    }
+    .timeline-card.new-card {
+      animation: cardSlideIn 0.35s ease;
+    }
+    @keyframes cardSlideIn {
+      from { opacity: 0; transform: translateY(-20px) scale(0.9); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .timeline-card.anchor {
+      border-color: #4f46e5;
+      background: #1e1b4b;
+    }
+    .timeline-card.correct-placed {
+      border-color: #22c55e;
+      background: #14532d;
+    }
+    .timeline-card.wrong-placed {
+      border-color: #ef4444;
+      background: #450a0a;
+    }
+    .timeline-card .tc-year {
+      font-size: 1rem;
+      font-weight: 800;
+      color: #a5b4fc;
+      margin-bottom: 4px;
+    }
+    .timeline-card.anchor .tc-year { color: #818cf8; }
+    .timeline-card .tc-name {
+      font-size: 0.68rem;
+      color: #cbd5e1;
+      line-height: 1.35;
+    }
+    .timeline-card .tc-cat {
+      margin-top: 5px;
+      font-size: 0.6rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* Category color dots */
+    .cat-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+    .cat-space    { background: #818cf8; }
+    .cat-politics { background: #f97316; }
+    .cat-science  { background: #22d3ee; }
+    .cat-culture  { background: #f472b6; }
+    .cat-war      { background: #ef4444; }
+    .cat-technology { background: #4ade80; }
+
+    /* ── Timeline axis line ── */
+    .timeline-axis {
+      position: absolute;
+      bottom: 20px;
+      left: 16px;
+      right: 16px;
+      height: 2px;
+      background: linear-gradient(to right, transparent, #334155 10%, #334155 90%, transparent);
+      pointer-events: none;
+    }
+
+    /* ── Feedback Banner ── */
+    .feedback-banner {
+      position: fixed;
+      top: 68px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 24px;
+      border-radius: 100px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      z-index: 100;
+      animation: bannerPop 2s ease forwards;
+      white-space: nowrap;
+    }
+    .feedback-banner.correct {
+      background: #22c55e;
+      color: #052e16;
+      box-shadow: 0 4px 20px rgba(34,197,94,0.4);
+    }
+    .feedback-banner.wrong {
+      background: #ef4444;
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(239,68,68,0.4);
+    }
+    @keyframes bannerPop {
+      0%   { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+      10%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+      70%  { opacity: 1; }
+      100% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+    }
+
+    /* ── Start Screen ── */
+    .start-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 40px 24px;
+      text-align: center;
+    }
+    .start-screen h2 {
+      font-size: 2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #818cf8, #6366f1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .start-screen p {
+      color: #94a3b8;
+      font-size: 0.95rem;
+      max-width: 380px;
+      line-height: 1.6;
+    }
+    .start-btn {
+      padding: 14px 40px;
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+    }
+    .start-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(99,102,241,0.5); }
+    .start-btn:active { transform: translateY(0); }
+
+    /* ── Game Over Screen ── */
+    .gameover-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 40px 24px;
+      text-align: center;
+    }
+    .gameover-screen h2 {
+      font-size: 1.8rem;
+      font-weight: 800;
+    }
+    .gameover-screen .final-score {
+      font-size: 3rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, #818cf8, #6366f1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .gameover-screen p { color: #94a3b8; font-size: 0.95rem; }
+    .play-again-btn {
+      padding: 12px 32px;
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .play-again-btn:hover { transform: translateY(-2px); }
+
+    /* ── Hint text ── */
+    .hint-text {
+      font-size: 0.8rem;
+      color: #fbbf24;
+      text-align: center;
+      padding: 6px 16px;
+      background: rgba(251,191,36,0.1);
+      border-radius: 8px;
+      border: 1px solid rgba(251,191,36,0.2);
+      max-width: 380px;
+      margin: 0 auto;
+    }
+
+    /* ── Loading ── */
+    .loading {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+
+    /* ── Complete banner ── */
+    .complete-banner {
+      text-align: center;
+      padding: 8px;
+      background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(16,185,129,0.15));
+      border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 12px;
+      color: #4ade80;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const { useState, useEffect, useRef, useCallback } = React;
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function formatYear(y) {
+    if (y < 0) return `${Math.abs(y)} BC`;
+    return `${y} AD`;
+  }
+
+  function catClass(cat) {
+    return `cat-${cat}`;
+  }
+
+  // ── postMessage bridge ────────────────────────────────────────────────────
+  function sendMsg(type, payload = {}) {
+    window.parent.postMessage({ type, ...payload }, '*');
+  }
+
+  // ── Main App ──────────────────────────────────────────────────────────────
+  function App() {
+    const [phase, setPhase] = useState('idle'); // idle | loading | playing | gameover
+    const [allEvents, setAllEvents] = useState([]);
+    const [timeline, setTimeline] = useState([]);
+    const [deck, setDeck] = useState([]);
+    const [currentCard, setCurrentCard] = useState(null);
+    const [score, setScore] = useState(0);
+    const [lives, setLives] = useState(3);
+    const [round, setRound] = useState(0);
+    const [feedback, setFeedback] = useState(null); // { type: 'correct'|'wrong', text }
+    const [cardAnim, setCardAnim] = useState(null); // 'correct-flash' | 'wrong-flash'
+    const [hint, setHint] = useState(null);
+    const [newCardIds, setNewCardIds] = useState(new Set());
+    const [deckComplete, setDeckComplete] = useState(false);
+
+    // pending tool calls
+    const pendingRef = useRef({});
+
+    // game state ref for postMessage handlers
+    const stateRef = useRef({});
+    stateRef.current = { phase, timeline, deck, currentCard, score, lives, round };
+
+    // ── postMessage listener ─────────────────────────────────────────────
+    useEffect(() => {
+      sendMsg('READY');
+
+      function handleMessage(evt) {
+        const msg = evt.data;
+        if (!msg || !msg.type) return;
+
+        if (msg.type === 'INVOKE_TOOL') {
+          const { tool, params, callId } = msg;
+          pendingRef.current[tool] = { callId, params };
+
+          if (tool === 'start_quiz') {
+            handleStartQuiz(params || {}, callId);
+          } else if (tool === 'check_placement') {
+            // Already handled by click; just ack with latest state
+            const s = stateRef.current;
+            sendMsg('TASK_COMPLETE', {
+              callId,
+              result: { correct: null, lives: s.lives, score: s.score }
+            });
+          } else if (tool === 'get_hint') {
+            handleGetHint(callId);
+          } else if (tool === 'next_card') {
+            handleNextCard(callId);
+          }
+        } else if (msg.type === 'STATE_RESTORE') {
+          restoreState(msg.state);
+        } else if (msg.type === 'DESTROY') {
+          // nothing special needed
+        }
+      }
+
+      window.addEventListener('message', handleMessage);
+      return () => window.removeEventListener('message', handleMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // ── send STATE_UPDATE whenever game state changes ─────────────────────
+    useEffect(() => {
+      if (phase === 'playing' || phase === 'gameover') {
+        sendMsg('STATE_UPDATE', {
+          state: { phase, timeline, deck, currentCard, score, lives, round, deckComplete }
+        });
+      }
+    }, [phase, timeline, deck, currentCard, score, lives, round, deckComplete]);
+
+    // ── start_quiz ────────────────────────────────────────────────────────
+    async function handleStartQuiz(params, callId) {
+      setPhase('loading');
+      try {
+        let events = allEvents;
+        if (!events.length) {
+          const res = await fetch('./data/events.json');
+          events = await res.json();
+          setAllEvents(events);
+        }
+
+        let filtered = events;
+        if (params.category) {
+          filtered = events.filter(e => e.category === params.category);
+        }
+        if (filtered.length === 0) {
+          sendMsg('TASK_COMPLETE', { callId, result: { started: false, error: 'No events for that category' } });
+          setPhase('idle');
+          return;
+        }
+
+        const shuffled = shuffle(filtered);
+        const anchor = shuffled[0];
+        const rest = shuffled.slice(1);
+
+        setTimeline([{ ...anchor, status: 'anchor' }]);
+        setDeck(rest.slice(1));
+        setCurrentCard(rest[0] || null);
+        setScore(0);
+        setLives(3);
+        setRound(1);
+        setHint(null);
+        setDeckComplete(false);
+        setNewCardIds(new Set([anchor.id]));
+        setPhase('playing');
+
+        sendMsg('TASK_COMPLETE', {
+          callId,
+          result: { started: true, totalCards: rest.length }
+        });
+      } catch (err) {
+        sendMsg('TASK_COMPLETE', { callId, result: { started: false, error: err.message } });
+        setPhase('idle');
+      }
+    }
+
+    // ── get_hint ──────────────────────────────────────────────────────────
+    function handleGetHint(callId) {
+      const s = stateRef.current;
+      if (!s.currentCard || !s.timeline.length) {
+        sendMsg('TASK_COMPLETE', { callId, result: { hint: 'No hint available.' } });
+        return;
+      }
+      const mid = s.timeline[Math.floor(s.timeline.length / 2)];
+      const direction = s.currentCard.year < mid.year ? 'before' : 'after';
+      const hintText = `This event happened ${direction} "${mid.event}" (${formatYear(mid.year)}).`;
+      setHint(hintText);
+      sendMsg('TASK_COMPLETE', { callId, result: { hint: hintText } });
+    }
+
+    // ── next_card ─────────────────────────────────────────────────────────
+    function handleNextCard(callId) {
+      setDeck(prev => {
+        if (prev.length === 0) {
+          setDeckComplete(true);
+          sendMsg('TASK_COMPLETE', { callId, result: { card: null, remaining: 0, complete: true } });
+          return prev;
+        }
+        const next = prev[0];
+        const remaining = prev.slice(1);
+        setCurrentCard(next);
+        setRound(r => r + 1);
+        setHint(null);
+        sendMsg('TASK_COMPLETE', { callId, result: { card: next, remaining: remaining.length } });
+        return remaining;
+      });
+    }
+
+    // ── STATE_RESTORE ─────────────────────────────────────────────────────
+    function restoreState(state) {
+      if (!state) return;
+      if (state.phase) setPhase(state.phase);
+      if (state.timeline) setTimeline(state.timeline);
+      if (state.deck) setDeck(state.deck);
+      if (state.currentCard !== undefined) setCurrentCard(state.currentCard);
+      if (state.score !== undefined) setScore(state.score);
+      if (state.lives !== undefined) setLives(state.lives);
+      if (state.round !== undefined) setRound(state.round);
+      if (state.deckComplete !== undefined) setDeckComplete(state.deckComplete);
+    }
+
+    // ── placement handler ─────────────────────────────────────────────────
+    function handlePlacement(insertIndex) {
+      if (!currentCard || phase !== 'playing') return;
+
+      // Build candidate timeline
+      const candidate = [...timeline];
+      candidate.splice(insertIndex, 0, { ...currentCard, status: 'pending' });
+
+      // Validate: is the timeline sorted by year?
+      const isCorrect = candidate.every((c, i) => {
+        if (i === 0) return true;
+        return candidate[i - 1].year <= c.year;
+      });
+
+      const status = isCorrect ? 'correct-placed' : 'wrong-placed';
+      const newTimeline = candidate.map((c, i) => (c.id === currentCard.id ? { ...c, status } : c));
+
+      setTimeline(newTimeline);
+      setNewCardIds(new Set([currentCard.id]));
+      setHint(null);
+
+      if (isCorrect) {
+        const newScore = score + 1;
+        setScore(newScore);
+        setFeedback({ type: 'correct', text: `Correct! It was ${formatYear(currentCard.year)}.` });
+        setCardAnim('correct-flash');
+        setTimeout(() => setCardAnim(null), 700);
+      } else {
+        const newLives = lives - 1;
+        setLives(newLives);
+        setFeedback({ type: 'wrong', text: `Wrong! It was ${formatYear(currentCard.year)}.` });
+        setCardAnim('wrong-flash');
+        setTimeout(() => setCardAnim(null), 700);
+
+        if (newLives <= 0) {
+          setTimeout(() => setPhase('gameover'), 900);
+        }
+      }
+
+      // Advance to next card
+      if (deck.length === 0) {
+        setCurrentCard(null);
+        setDeckComplete(true);
+        setTimeout(() => setPhase('gameover'), 1200);
+      } else {
+        const next = deck[0];
+        const newDeck = deck.slice(1);
+        setTimeout(() => {
+          setCurrentCard(next);
+          setRound(r => r + 1);
+          setDeck(newDeck);
+        }, 600);
+      }
+
+      setTimeout(() => setFeedback(null), 2000);
+    }
+
+    // ── start game locally ────────────────────────────────────────────────
+    async function startGameLocal() {
+      await handleStartQuiz({}, 'local');
+    }
+
+    // ── renders ───────────────────────────────────────────────────────────
+    if (phase === 'idle') {
+      return React.createElement('div', { className: 'start-screen' },
+        React.createElement('div', { style: { fontSize: '3rem' } }, '🕰️'),
+        React.createElement('h2', null, 'Timeline Quiz'),
+        React.createElement('p', null, 'Place historical events in the correct chronological order. You have 3 lives. How many can you get right?'),
+        React.createElement('button', { className: 'start-btn', onClick: startGameLocal }, 'Start Playing')
+      );
+    }
+
+    if (phase === 'loading') {
+      return React.createElement('div', { className: 'loading' }, 'Loading events…');
+    }
+
+    if (phase === 'gameover') {
+      const won = lives > 0;
+      return React.createElement('div', { className: 'gameover-screen' },
+        React.createElement('div', { style: { fontSize: '3rem' } }, won ? '🎉' : '💀'),
+        React.createElement('h2', null, won ? 'Deck Complete!' : 'Game Over'),
+        React.createElement('div', { className: 'final-score' }, score),
+        React.createElement('p', null, `You placed ${score} card${score !== 1 ? 's' : ''} correctly out of ${round - 1} total.`),
+        React.createElement('button', { className: 'play-again-btn', onClick: startGameLocal }, 'Play Again')
+      );
+    }
+
+    // playing
+    const totalPlayed = round - 1;
+
+    return React.createElement('div', { style: { display: 'flex', flexDirection: 'column', height: '100vh' } },
+      // top bar
+      React.createElement('div', { className: 'top-bar' },
+        React.createElement('h1', null, '🕰️ Timeline Quiz'),
+        React.createElement('div', { className: 'top-bar-stats' },
+          React.createElement('div', { className: 'stat-badge' },
+            React.createElement('span', { className: 'label' }, 'Round'),
+            React.createElement('span', { className: 'value' }, round)
+          ),
+          React.createElement('div', { className: 'stat-badge' },
+            React.createElement('span', { className: 'label' }, 'Score'),
+            React.createElement('span', { className: 'value' }, score)
+          ),
+          React.createElement('div', { className: 'hearts' },
+            [0, 1, 2].map(i =>
+              React.createElement('span', { key: i, className: `heart ${i >= lives ? 'lost' : ''}` }, '❤️')
+            )
+          )
+        )
+      ),
+
+      // feedback banner
+      feedback && React.createElement('div', { className: `feedback-banner ${feedback.type}` }, feedback.text),
+
+      // main area
+      React.createElement('div', { className: 'main-content' },
+
+        // current card area
+        currentCard
+          ? React.createElement('div', { className: 'current-card-area' },
+              React.createElement('div', { className: 'current-card-label' }, 'Where does this event belong?'),
+              React.createElement('div', { className: `current-card ${cardAnim || ''}` },
+                React.createElement('div', { className: 'event-name' }, currentCard.event),
+                React.createElement('div', { className: 'category-badge' },
+                  React.createElement('span', { className: `cat-dot ${catClass(currentCard.category)}` }),
+                  currentCard.category
+                )
+              ),
+              React.createElement('div', { className: 'instruction' }, '↓ Click a gap in the timeline below to place it ↓')
+            )
+          : deckComplete
+            ? React.createElement('div', { className: 'complete-banner' }, '✅ All cards placed! Final score: ' + score)
+            : null,
+
+        // hint
+        hint && React.createElement('div', { className: 'hint-text' }, '💡 ' + hint),
+
+        // timeline
+        React.createElement('div', { className: 'timeline-area' },
+          React.createElement('div', { className: 'timeline-scroll' },
+            React.createElement('div', { className: 'timeline-inner' },
+              // drop zone before first card
+              currentCard && React.createElement(DropZone, { key: 'dz-0', onClick: () => handlePlacement(0) }),
+              // cards and drop zones
+              timeline.map((card, i) =>
+                React.createElement(React.Fragment, { key: card.id },
+                  React.createElement(TimelineCard, {
+                    card,
+                    isNew: newCardIds.has(card.id)
+                  }),
+                  currentCard && React.createElement(DropZone, {
+                    key: `dz-${i + 1}`,
+                    onClick: () => handlePlacement(i + 1)
+                  })
+                )
+              )
+            )
+          )
+        )
+      )
+    );
+  }
+
+  // ── DropZone component ────────────────────────────────────────────────────
+  function DropZone({ onClick }) {
+    return React.createElement('div', { className: 'drop-zone', onClick, title: 'Place card here' },
+      React.createElement('div', { className: 'drop-zone-line' }),
+      React.createElement('span', { className: 'drop-zone-arrow' }, '▼')
+    );
+  }
+
+  // ── TimelineCard component ────────────────────────────────────────────────
+  function TimelineCard({ card, isNew }) {
+    const cls = [
+      'timeline-card',
+      card.status || '',
+      isNew ? 'new-card' : ''
+    ].filter(Boolean).join(' ');
+
+    return React.createElement('div', { className: cls },
+      React.createElement('div', { className: 'tc-year' }, formatYear(card.year)),
+      React.createElement('div', { className: 'tc-name' }, card.event),
+      React.createElement('div', { className: 'tc-cat' },
+        React.createElement('span', { className: `cat-dot ${catClass(card.category)}` }),
+        card.category
+      )
+    );
+  }
+
+  // ── Mount ─────────────────────────────────────────────────────────────────
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(React.createElement(App));
+})();
+</script>
+</body>
+</html>
