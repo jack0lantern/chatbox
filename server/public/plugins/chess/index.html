@@ -6,7 +6,11 @@
   <title>Chess</title>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/chess.js@1.0.0-beta.8/dist/chess.min.js" crossorigin></script>
+  <script>
+    // chess.js CJS shim — the CDN version uses exports.Chess, so we create a fake exports object
+    var exports = {};
+  </script>
+  <script src="https://unpkg.com/chess.js@1.0.0-beta.8/dist/cjs/chess.js" crossorigin></script>
   <style>
     :root {
       --bg: #1a1b2e;
@@ -122,6 +126,7 @@
     .chess-board {
       display: grid;
       grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
       width: 480px;
       height: 480px;
       user-select: none;
@@ -159,29 +164,44 @@
     /* Legal move dots */
     .legal-dot {
       position: absolute;
-      width: 28%;
-      height: 28%;
-      background: rgba(0, 0, 0, 0.2);
+      width: 30%;
+      height: 30%;
+      background: rgba(0, 0, 0, 0.15);
       border-radius: 50%;
       pointer-events: none;
+      z-index: 2;
     }
 
     .legal-capture {
       position: absolute;
-      inset: 0;
-      border-radius: 0;
-      border: 4px solid rgba(0, 0, 0, 0.2);
+      width: 85%;
+      height: 85%;
+      border-radius: 50%;
+      border: 6px solid rgba(0, 0, 0, 0.15);
+      background: transparent;
       pointer-events: none;
+      z-index: 2;
     }
 
     /* Chess pieces */
     .piece {
       font-size: 44px;
       line-height: 1;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.4);
       cursor: pointer;
       transition: transform 0.1s ease;
       z-index: 1;
+    }
+
+    .white-piece {
+      color: #ffffff;
+      -webkit-text-stroke: 1px #444;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    .black-piece {
+      color: #222222;
+      -webkit-text-stroke: 1px #000;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
     }
 
     .piece:hover {
@@ -313,8 +333,8 @@
       font-size: 13px;
     }
 
-    .history-move.white-move { color: #f0d9b5; }
-    .history-move.black-move { color: #b58863; }
+    .history-move.white-move { color: #ffffff; }
+    .history-move.black-move { color: #aaaaaa; }
 
     /* Controls */
     .controls {
@@ -521,7 +541,7 @@
 const { createElement: h, useState, useEffect, useCallback, useRef } = React;
 
 const PIECE_UNICODE = {
-  wK: '♔', wQ: '♕', wR: '♖', wB: '♗', wN: '♘', wP: '♙',
+  wK: '♚', wQ: '♛', wR: '♜', wB: '♝', wN: '♞', wP: '♟',
   bK: '♚', bQ: '♛', bR: '♜', bB: '♝', bN: '♞', bP: '♟',
 };
 
@@ -556,7 +576,7 @@ function getAIMove(chess, difficulty) {
 
   // check if any move gives check
   const checkMoves = moves.filter(m => {
-    chess.move(m);
+    try { chess.move(m); } catch { return false; }
     const inCheck = chess.inCheck();
     chess.undo();
     return inCheck;
@@ -653,7 +673,7 @@ function handleStartGame(invId, params) {
   if (playerColor === 'black') {
     const aiMove = getAIMove(chess, difficulty);
     if (aiMove) {
-      chess.move(aiMove);
+      try { chess.move(aiMove); } catch (e) { /* invalid AI move */ }
       appState.moveHistory.push(aiMove.san);
     }
   }
@@ -746,7 +766,13 @@ function handleRedoMove(invId) {
   let redone = false;
   for (let i = 0; i < 2 && appState.redoStack.length > 0; i++) {
     const moveObj = appState.redoStack.pop();
-    const result = chess.move({ from: moveObj.from, to: moveObj.to, promotion: moveObj.promotion || 'q' });
+    let result;
+    try {
+      result = chess.move({ from: moveObj.from, to: moveObj.to, promotion: moveObj.promotion || 'q' });
+    } catch (e) {
+      // Invalid move after state change — skip
+      break;
+    }
     if (result) {
       appState.moveHistory.push(result.san);
       redone = true;
@@ -807,16 +833,18 @@ window.addEventListener('message', (event) => {
 // ─────────────────────────────────────────────
 
 function PromotionModal({ color, onSelect }) {
-  const pieces = color === 'w'
-    ? [['q', '♕'], ['r', '♖'], ['b', '♗'], ['n', '♘']]
-    : [['q', '♛'], ['r', '♜'], ['b', '♝'], ['n', '♞']];
+  const pieces = [['q', '♛'], ['r', '♜'], ['b', '♝'], ['n', '♞']];
 
   return h('div', { className: 'modal-overlay' },
     h('div', { className: 'modal' },
       h('h3', null, 'Choose Promotion Piece'),
       h('div', { className: 'promotion-pieces' },
         pieces.map(([type, glyph]) =>
-          h('button', { key: type, className: 'promo-btn', onClick: () => onSelect(type) }, glyph)
+          h('button', { 
+            key: type, 
+            className: `promo-btn ${color === 'w' ? 'white-piece' : 'black-piece'}`, 
+            onClick: () => onSelect(type) 
+          }, glyph)
         )
       )
     )
@@ -830,8 +858,10 @@ function Square({ sq, piece, isLight, isSelected, isLegalMove, isLastMove, isChe
   else if (isLastMove) className += ' last-move';
   if (isCheck) className += ' in-check';
 
+  const pieceClass = piece ? `piece ${piece[0] === 'w' ? 'white-piece' : 'black-piece'}` : '';
+
   return h('div', { className, onClick, 'data-sq': sq },
-    piece && h('span', { className: 'piece' }, PIECE_UNICODE[piece] || ''),
+    piece && h('span', { className: pieceClass }, PIECE_UNICODE[piece] || ''),
     isLegalMove && !isCapture && h('div', { className: 'legal-dot' }),
     isLegalMove && isCapture && h('div', { className: 'legal-capture' }),
   );
@@ -1054,7 +1084,8 @@ function App() {
         }
       }
 
-      const result = chess.move({ ...moveObj, promotion: 'q' });
+      let result;
+      try { result = chess.move({ ...moveObj, promotion: 'q' }); } catch (e) { /* invalid move */ }
       if (result) {
         const newHistory = [...appState.moveHistory, result.san];
         appState.moveHistory = newHistory;
@@ -1070,7 +1101,8 @@ function App() {
           setTimeout(() => {
             const aiMove = getAIMove(chess, appState.difficulty);
             if (aiMove) {
-              const aiResult = chess.move(aiMove);
+              let aiResult;
+              try { aiResult = chess.move(aiMove); } catch (e) { /* invalid AI move */ }
               if (aiResult) {
                 appState.moveHistory = [...appState.moveHistory, aiResult.san];
                 setLastMove({ from: aiMove.from, to: aiMove.to });
@@ -1106,7 +1138,8 @@ function App() {
   const handlePromotion = useCallback((pieceType) => {
     if (!promotionPending || !chess) return;
     const { from, to } = promotionPending;
-    const result = chess.move({ from, to, promotion: pieceType });
+    let result;
+    try { result = chess.move({ from, to, promotion: pieceType }); } catch (e) { /* invalid */ }
     if (result) {
       const newHistory = [...appState.moveHistory, result.san];
       appState.moveHistory = newHistory;
@@ -1119,7 +1152,8 @@ function App() {
         setTimeout(() => {
           const aiMove = getAIMove(chess, appState.difficulty);
           if (aiMove) {
-            const aiResult = chess.move(aiMove);
+            let aiResult;
+            try { aiResult = chess.move(aiMove); } catch (e) { /* invalid */ }
             if (aiResult) {
               appState.moveHistory = [...appState.moveHistory, aiResult.san];
               setLastMove({ from: aiMove.from, to: aiMove.to });
