@@ -621,9 +621,9 @@ function sendTaskComplete(result) {
 
 function sendError(message) {
   window.parent.postMessage({
-    type: 'TASK_ERROR',
+    type: 'ERROR',
     invocationId: currentInvocationId,
-    payload: { error: message },
+    payload: { code: 'INTERNAL_ERROR', message, recoverable: false },
   }, '*');
 }
 
@@ -817,15 +817,15 @@ function handleRestoreState(savedState) {
 window.addEventListener('message', (event) => {
   const { type, invocationId, payload } = event.data || {};
   if (type === 'INVOKE_TOOL') {
-    const { tool, params } = payload || {};
-    if (tool === 'start_game')  handleStartGame(invocationId, params);
-    else if (tool === 'get_hint')   handleGetHint(invocationId, params);
-    else if (tool === 'end_game')   handleEndGame(invocationId);
-    else if (tool === 'undo_move')  handleUndoMove(invocationId);
-    else if (tool === 'redo_move')  handleRedoMove(invocationId);
+    const { toolName, parameters } = payload || {};
+    if (toolName === 'start_game')  handleStartGame(invocationId, parameters);
+    else if (toolName === 'get_hint')   handleGetHint(invocationId, parameters);
+    else if (toolName === 'end_game')   handleEndGame(invocationId);
+    else if (toolName === 'undo_move')  handleUndoMove(invocationId);
+    else if (toolName === 'redo_move')  handleRedoMove(invocationId);
     else {
       currentInvocationId = invocationId;
-      sendError(`Unknown tool: ${tool}`);
+      sendError(`Unknown tool: ${toolName}`);
     }
   } else if (type === 'STATE_RESTORE') {
     handleRestoreState(payload?.state);
