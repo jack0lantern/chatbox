@@ -1,10 +1,11 @@
 import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
+import SpotifyProvider from 'next-auth/providers/spotify'
+import { PrismaAdapter } from '@auth/prisma-adapter'
 import { prisma } from './prisma'
 
 export const authOptions: NextAuthOptions = {
-  // PrismaAdapter will be added back in Phase 4 when we need OAuth (Spotify).
-  // Credentials provider + JWT strategy doesn't need a database adapter.
+  adapter: PrismaAdapter(prisma) as any,
   providers: [
     CredentialsProvider({
       name: 'Email',
@@ -14,13 +15,9 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
-
-        // For MVP: auto-create user on first login, simple password check
-        // Replace with proper hashing (bcrypt) before production
         let user = await prisma.user.findUnique({
           where: { email: credentials.email },
         })
-
         if (!user) {
           user = await prisma.user.create({
             data: {
@@ -29,9 +26,18 @@ export const authOptions: NextAuthOptions = {
             },
           })
         }
-
         return { id: user.id, email: user.email, name: user.name }
       },
+    }),
+    SpotifyProvider({
+      clientId: process.env.SPOTIFY_CLIENT_ID!,
+      clientSecret: process.env.SPOTIFY_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope: 'playlist-modify-public playlist-read-private user-read-email',
+        },
+      },
+      allowDangerousEmailAccountLinking: true,
     }),
   ],
   session: {
