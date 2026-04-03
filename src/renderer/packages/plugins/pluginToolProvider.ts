@@ -72,9 +72,9 @@ export class PluginToolProvider {
   private manager: PluginManager
   private fetchFn: typeof fetch
 
-  constructor(manager: PluginManager, fetchFn: typeof fetch = fetch) {
+  constructor(manager: PluginManager, fetchFn?: typeof fetch) {
     this.manager = manager
-    this.fetchFn = fetchFn
+    this.fetchFn = fetchFn ?? ((...args: Parameters<typeof fetch>) => fetch(...args))
   }
 
   async loadPlugins(serverBaseUrl: string): Promise<void> {
