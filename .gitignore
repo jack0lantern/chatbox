@@ -188,3 +188,8 @@ storybook-static
 .gstack/
 .worktrees/
 .claude/worktrees/
+
+# Test artifacts (Playwright, etc.)
+/test-results/
+/server/test-results/
+/server/supabase/test-results/
