@@ -1,5 +1,6 @@
 import { getBuiltinServerConfig } from '@/packages/mcp/builtin'
 import { mcpController } from '@/packages/mcp/controller'
+import { pluginToolProviderInstance } from '@/packages/plugins/pluginToolProvider'
 import { initSettingsStore } from '@/stores/settingsStore'
 import { NODE_ENV } from '@/variables'
 
@@ -31,6 +32,10 @@ initSettingsStore()
     ]
     console.info(`mcp bootstrap ${servers.length} servers, with license key: ${!!licenseKey}`)
     mcpController.bootstrap(servers)
+    // Load plugin tools from server
+    pluginToolProviderInstance.loadPlugins('http://localhost:3000').catch((err) => {
+      console.error('Failed to load plugins:', err)
+    })
     if (NODE_ENV === 'development') {
       monitorServerStatus()
     }

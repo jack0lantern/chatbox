@@ -24,6 +24,7 @@ import {
   type StreamTextResult,
 } from '../../../shared/types'
 import { mcpController } from '../mcp/controller'
+import { pluginToolProviderInstance } from '../plugins/pluginToolProvider'
 import { convertToModelMessages, injectModelSystemPrompt } from './message-utils'
 import { imageOCR } from './preprocess'
 import {
@@ -295,6 +296,7 @@ export async function streamText(
     // 4. construct tool set
     let tools: ToolSet = {
       ...mcpController.getAvailableTools(),
+      ...pluginToolProviderInstance.getAvailableTools(),
     }
     if (webBrowsing) {
       tools.web_search = webSearchTool
