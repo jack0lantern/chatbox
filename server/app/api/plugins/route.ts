@@ -1,14 +1,9 @@
-import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+// Plugin schemas are public data — the AI needs them for tool discovery.
+// No auth required for listing active plugins.
 export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
   const plugins = await prisma.pluginRegistration.findMany({
     where: { status: 'active' },
     select: {
@@ -23,5 +18,5 @@ export async function GET() {
     },
   })
 
-  return NextResponse.json({ plugins })
+  return NextResponse.json(plugins)
 }
