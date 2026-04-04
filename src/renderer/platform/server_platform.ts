@@ -4,10 +4,12 @@ import type { ImageGenerationStorage } from '@/storage/ImageGenerationStorage'
 import type { Exporter, Platform, PlatformType } from './interfaces'
 import type { KnowledgeBaseController } from './knowledge-base/interface'
 
-const SERVER_URL = process.env.CHATBRIDGE_SERVER_URL || 'http://localhost:3000'
-
 async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
-  return fetch(`${SERVER_URL}${path}`, {
+  const baseUrl = process.env.CHATBRIDGE_SERVER_URL
+  if (!baseUrl) {
+    throw new Error('CHATBRIDGE_SERVER_URL is not configured')
+  }
+  return fetch(`${baseUrl}${path}`, {
     ...options,
     credentials: 'include',
     headers: {
