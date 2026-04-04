@@ -74,7 +74,7 @@ export function ChatBridgeAccountSection() {
     mutationFn: signOutViaNextAuth,
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: ['chatbridge-session'] })
-      window.location.href = `${serverUrl}/login`
+      window.location.reload()
     },
   })
 
@@ -105,7 +105,7 @@ export function ChatBridgeAccountSection() {
           size="xs"
           fullWidth
           onClick={() => {
-            window.location.href = `${serverUrl}/login`
+            window.location.reload()
           }}
         >
           {t('Login')}

@@ -8,6 +8,7 @@ import 'photoswipe/dist/photoswipe.css'
 import { StrictMode, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
+import LoginScreen from './components/auth/LoginScreen'
 import i18n from './i18n'
 import { getLogger } from './lib/utils'
 import platform from './platform'
@@ -179,20 +180,29 @@ if (serverUrl) {
         credentials: 'include',
       })
       const session = await res.json()
-      if (!session?.user) {
-        window.location.href = `${serverUrl}/login`
-        return false
-      }
-      return true
+      return !!session?.user
     } catch {
-      window.location.href = `${serverUrl}/login`
       return false
     }
   }
 
+  const renderLoginScreen = () => {
+    const splash = document.querySelector('.splash-screen')
+    if (splash) splash.remove()
+
+    ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+      <LoginScreen serverUrl={serverUrl} onSuccess={() => {
+        window.location.reload()
+      }} />
+    )
+  }
+
   checkAuth().then((authenticated) => {
-    if (!authenticated) return
-    startApp()
+    if (authenticated) {
+      startApp()
+    } else {
+      renderLoginScreen()
+    }
   })
 } else {
   startApp()
