@@ -49,9 +49,6 @@ export default defineConfig({
     'process.env.CHATBOX_BUILD_CHANNEL': JSON.stringify('unknown'),
     'process.env.USE_LOCAL_API': JSON.stringify(''),
     'process.env.USE_BETA_API': JSON.stringify(''),
-    // Proxy handles /api routing. Use empty base URL so fetches are same-origin.
-    // CHATBRIDGE_ENABLED activates ChatBridge mode independently from the URL.
-    'process.env.CHATBRIDGE_SERVER_URL': JSON.stringify(''),
-    'process.env.CHATBRIDGE_ENABLED': JSON.stringify(process.env.CHATBRIDGE_SERVER_URL ? 'true' : ''),
+    'process.env.CHATBRIDGE_SERVER_URL': JSON.stringify(process.env.CHATBRIDGE_SERVER_URL ? 'proxy' : ''),
   },
 })

@@ -4,19 +4,16 @@ import { IconAlertCircle } from '@tabler/icons-react'
 import { useCallback, useState } from 'react'
 
 interface LoginScreenProps {
-  serverUrl: string
   onSuccess: () => void
 }
 
-async function authenticate(serverUrl: string, email: string, password: string): Promise<void> {
-  // 1. Get CSRF token
-  const csrfRes = await fetch(`${serverUrl}/api/auth/csrf`, { credentials: 'include' })
+async function authenticate(email: string, password: string): Promise<void> {
+  const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' })
   if (!csrfRes.ok) throw new Error('Could not reach server')
   const { csrfToken } = await csrfRes.json()
 
-  // 2. Submit credentials to NextAuth
   const body = new URLSearchParams({ csrfToken, email, password, json: 'true' })
-  const res = await fetch(`${serverUrl}/api/auth/callback/credentials`, {
+  const res = await fetch('/api/auth/callback/credentials', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -25,13 +22,12 @@ async function authenticate(serverUrl: string, email: string, password: string):
 
   if (!res.ok) throw new Error('Invalid email or password')
 
-  // 3. Verify session was created
-  const sessionRes = await fetch(`${serverUrl}/api/auth/session`, { credentials: 'include' })
+  const sessionRes = await fetch('/api/auth/session', { credentials: 'include' })
   const session = await sessionRes.json()
   if (!session?.user) throw new Error('Authentication failed. Please try again.')
 }
 
-export default function LoginScreen({ serverUrl, onSuccess }: LoginScreenProps) {
+export default function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -44,7 +40,7 @@ export default function LoginScreen({ serverUrl, onSuccess }: LoginScreenProps) 
       setError('')
       setLoading(true)
       try {
-        await authenticate(serverUrl, email, password)
+        await authenticate(email, password)
         onSuccess()
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -52,7 +48,7 @@ export default function LoginScreen({ serverUrl, onSuccess }: LoginScreenProps) 
         setLoading(false)
       }
     },
-    [serverUrl, email, password, onSuccess],
+    [email, password, onSuccess],
   )
 
   return (

@@ -125,8 +125,7 @@ const tid = setTimeout(() => {
 }, 1000)
 
 // 等待初始化完成后再渲染
-const serverUrl = process.env.CHATBRIDGE_SERVER_URL ?? ''
-const chatbridgeEnabled = !!process.env.CHATBRIDGE_ENABLED
+const chatbridgeEnabled = !!process.env.CHATBRIDGE_SERVER_URL
 
 function startApp() {
   initializeApp()
@@ -177,7 +176,7 @@ function startApp() {
 if (chatbridgeEnabled) {
   const checkAuth = async () => {
     try {
-      const res = await fetch(`${serverUrl}/api/auth/session`, {
+      const res = await fetch('/api/auth/session', {
         credentials: 'include',
       })
       const session = await res.json()
@@ -192,7 +191,7 @@ if (chatbridgeEnabled) {
     if (splash) splash.remove()
 
     ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-      <LoginScreen serverUrl={serverUrl} onSuccess={() => {
+      <LoginScreen onSuccess={() => {
         window.location.reload()
       }} />
     )

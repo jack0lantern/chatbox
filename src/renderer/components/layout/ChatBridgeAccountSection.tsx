@@ -4,8 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ScalableIcon } from '@/components/common/ScalableIcon'
 
-const serverUrl = process.env.CHATBRIDGE_SERVER_URL ?? ''
-const chatbridgeEnabled = !!process.env.CHATBRIDGE_ENABLED
+const chatbridgeEnabled = !!process.env.CHATBRIDGE_SERVER_URL
 
 type NextAuthSession = {
   user?: {
@@ -18,7 +17,7 @@ async function fetchSession(): Promise<NextAuthSession> {
   if (!chatbridgeEnabled) {
     return {}
   }
-  const res = await fetch(`${serverUrl}/api/auth/session`, { credentials: 'include' })
+  const res = await fetch('/api/auth/session', { credentials: 'include' })
   if (!res.ok) {
     throw new Error('session request failed')
   }
@@ -26,10 +25,7 @@ async function fetchSession(): Promise<NextAuthSession> {
 }
 
 async function signOutViaNextAuth(): Promise<void> {
-  if (!chatbridgeEnabled) {
-    throw new Error('ChatBridge server URL not configured')
-  }
-  const csrfRes = await fetch(`${serverUrl}/api/auth/csrf`, { credentials: 'include' })
+  const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' })
   if (!csrfRes.ok) {
     throw new Error('csrf request failed')
   }
@@ -39,9 +35,9 @@ async function signOutViaNextAuth(): Promise<void> {
   }
   const body = new URLSearchParams({
     csrfToken,
-    callbackUrl: `${serverUrl}/login`,
+    callbackUrl: '/login',
   })
-  const signOutRes = await fetch(`${serverUrl}/api/auth/signout`, {
+  const signOutRes = await fetch('/api/auth/signout', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -64,7 +60,7 @@ export function ChatBridgeAccountSection() {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['chatbridge-session', serverUrl],
+    queryKey: ['chatbridge-session'],
     queryFn: fetchSession,
     enabled: chatbridgeEnabled,
     staleTime: 60_000,
