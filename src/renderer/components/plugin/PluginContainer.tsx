@@ -1,9 +1,13 @@
-import { ActionIcon, Collapse, Group, Paper, Text, UnstyledButton } from '@mantine/core'
-import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react'
+import { ActionIcon, Group, Text, UnstyledButton } from '@mantine/core'
+import { IconX } from '@tabler/icons-react'
+import { useSetAtom } from 'jotai'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSidebarWidth } from '@/hooks/useScreenChange'
 import { pluginManager } from '@/packages/plugins/pluginManager'
 import type { PluginDefinition } from '@/packages/plugins/pluginToolProvider'
 import { pluginToolProviderInstance } from '@/packages/plugins/pluginToolProvider'
+import { pluginActiveAtom } from '@/stores/atoms/uiAtoms'
+import { useUIStore } from '@/stores/uiStore'
 import { PluginBridge } from './PluginBridge'
 
 interface ActivePlugin {
@@ -13,9 +17,10 @@ interface ActivePlugin {
 
 export default function PluginContainer() {
   const [activePlugin, setActivePlugin] = useState<ActivePlugin | null>(null)
-  const [minimized, setMinimized] = useState(false)
+  const activePluginRef = useRef<ActivePlugin | null>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const bridgeRef = useRef<PluginBridge | null>(null)
+  const setPluginActive = useSetAtom(pluginActiveAtom)
 
   // Queue of tool invocations waiting for the bridge to be ready
   const pendingInvocationsRef = useRef<Array<{
@@ -25,6 +30,9 @@ export default function PluginContainer() {
   }>>([])
   const bridgeReadyRef = useRef(false)
 
+  // Keep ref in sync so event handlers always see the latest value
+  activePluginRef.current = activePlugin
+
   const sendPendingInvocations = useCallback(() => {
     if (!bridgeRef.current || !bridgeReadyRef.current) return
     for (const inv of pendingInvocationsRef.current) {
@@ -33,7 +41,7 @@ export default function PluginContainer() {
     pendingInvocationsRef.current = []
   }, [])
 
-  // Subscribe to pluginManager events
+  // Subscribe to pluginManager events — stable subscription, never re-subscribes
   useEffect(() => {
     const offMount = pluginManager.on('mount', (payload) => {
       if (!('toolName' in payload)) return
@@ -46,7 +54,7 @@ export default function PluginContainer() {
       pendingInvocationsRef.current = []
       bridgeReadyRef.current = false
       setActivePlugin({ pluginSlug, plugin })
-      setMinimized(false)
+      setPluginActive(true)
     })
 
     const offInvoke = pluginManager.on('invoke', (payload) => {
@@ -64,12 +72,12 @@ export default function PluginContainer() {
       } else {
         pendingInvocationsRef.current.push({ invocationId, toolName, parameters })
       }
-      setMinimized(false)
     })
 
     const offUnmount = pluginManager.on('unmount', (payload) => {
-      if ('pluginSlug' in payload && activePlugin?.pluginSlug === payload.pluginSlug) {
+      if ('pluginSlug' in payload && activePluginRef.current?.pluginSlug === payload.pluginSlug) {
         setActivePlugin(null)
+        setPluginActive(false)
         bridgeReadyRef.current = false
         pendingInvocationsRef.current = []
       }
@@ -79,8 +87,9 @@ export default function PluginContainer() {
       offMount()
       offInvoke()
       offUnmount()
+      setPluginActive(false)
     }
-  }, [activePlugin, sendPendingInvocations])
+  }, [setPluginActive])
 
   // Set up PluginBridge when iframe mounts
   useEffect(() => {
@@ -135,17 +144,27 @@ export default function PluginContainer() {
     }
   }, [activePlugin])
 
+  const showSidebar = useUIStore((s) => s.showSidebar)
+  const sidebarWidth = useSidebarWidth()
+
   if (!activePlugin) return null
 
   const { plugin } = activePlugin
+  const sidebarOffset = showSidebar ? sidebarWidth : 0
 
   return (
-    <Paper
-      radius="md"
-      withBorder
-      mx="sm"
-      mb={4}
-      style={{ overflow: 'hidden' }}
+    <div
+      className="hidden sm:flex"
+      style={{
+        position: 'fixed',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: sidebarOffset,
+        zIndex: 2,
+        flexDirection: 'column',
+        backgroundColor: 'var(--mantine-color-body)',
+      }}
     >
       <Group
         justify="space-between"
@@ -153,38 +172,30 @@ export default function PluginContainer() {
         py={6}
         style={{
           backgroundColor: 'var(--chatbox-background-gray-secondary)',
-          borderBottom: minimized ? 'none' : '1px solid var(--mantine-color-default-border)',
-          cursor: 'pointer',
+          borderBottom: '1px solid var(--mantine-color-default-border)',
+          flexShrink: 0,
         }}
-        onClick={() => setMinimized(prev => !prev)}
       >
         <Group gap={8}>
           <Text size="sm" fw={600}>
             {plugin.appName}
           </Text>
         </Group>
-        <Group gap={4}>
-          <UnstyledButton onClick={(e) => { e.stopPropagation(); setMinimized(prev => !prev) }}>
-            {minimized ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
-          </UnstyledButton>
-          <ActionIcon variant="subtle" size="sm" onClick={(e) => { e.stopPropagation(); handleClose() }}>
-            <IconX size={14} />
-          </ActionIcon>
-        </Group>
+        <ActionIcon variant="subtle" size="sm" onClick={handleClose}>
+          <IconX size={14} />
+        </ActionIcon>
       </Group>
-      <Collapse in={!minimized}>
-        <iframe
-          ref={iframeRef}
-          src={plugin.iframeUrl}
-          sandbox="allow-scripts allow-same-origin"
-          style={{
-            width: '100%',
-            height: plugin.permissions.maxIframeHeight,
-            border: 'none',
-            display: 'block',
-          }}
-        />
-      </Collapse>
-    </Paper>
+      <iframe
+        ref={iframeRef}
+        src={plugin.iframeUrl}
+        sandbox="allow-scripts allow-same-origin"
+        style={{
+          width: '100%',
+          flex: 1,
+          border: 'none',
+          display: 'block',
+        }}
+      />
+    </div>
   )
 }

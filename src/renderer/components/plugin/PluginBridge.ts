@@ -31,6 +31,9 @@ export class PluginBridge {
   constructor(config: PluginBridgeConfig) {
     this.iframe = config.iframe
     this.allowedOrigins = new Set(config.allowedOrigins)
+    // The iframe may be served through a proxy (same origin as the renderer),
+    // so always accept messages from the current page's origin.
+    this.allowedOrigins.add(window.location.origin)
     this.config = config
 
     this.listener = this.handleMessage.bind(this)

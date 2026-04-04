@@ -32,3 +32,6 @@ export const inputBoxPreConstructedMessageFamily = atomFamily((_sessionId: strin
 
 // Atom to store collapsed state of providers
 export const collapsedProvidersAtom = atomWithStorage<Record<string, boolean>>('collapsedProviders', {})
+
+// Whether a plugin iframe is currently active (fullscreen mode)
+export const pluginActiveAtom = atom(false)

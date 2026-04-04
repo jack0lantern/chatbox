@@ -155,7 +155,7 @@ A new React component that renders when the LLM emits a tool call mapping to a r
 - Manages the `READY` timeout (5s)
 - Passes messages through the bridge
 - Shows a loading state while waiting for `READY`
-- Renders inline in the chat message stream, below the assistant message that triggered it
+- Renders as a fullscreen overlay (`PluginContainer`) with a header bar and close button, rather than inline in the chat stream — this gives plugins sufficient screen real estate for interactive UIs like chess boards and timelines
 
 ### postMessage Bridge (`PluginBridge`)
 
