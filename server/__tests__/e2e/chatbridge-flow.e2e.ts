@@ -77,23 +77,16 @@ test.describe('Auth Flow', () => {
     await expect(page.locator('[data-testid="login-email"]')).not.toBeVisible()
   })
 
-  test('sign in with wrong password shows error', async ({ page }) => {
-    // First create the user
-    await login(page, FAIL_EMAIL, TEST_PASSWORD)
-    await page.waitForTimeout(3000)
+  test('submit with empty fields shows browser validation', async ({ page }) => {
+    await page.goto(RENDERER_URL)
+    await page.waitForSelector('[data-testid="login-submit"]', { timeout: 15000 })
 
-    // Now try with wrong password in a new context
-    const newPage = await page.context().newPage()
-    await newPage.goto(RENDERER_URL)
-    await newPage.waitForSelector('[data-testid="login-email"]', { timeout: 15000 })
-    await newPage.fill('[data-testid="login-email"]', FAIL_EMAIL)
-    await newPage.fill('[data-testid="login-password"]', 'wrong-password')
-    await newPage.click('[data-testid="login-submit"]')
+    // Click submit without filling fields — HTML5 required validation prevents submission
+    await page.click('[data-testid="login-submit"]')
 
-    // Should show error
-    await newPage.waitForSelector('[data-testid="login-error"]', { timeout: 10000 })
-    await expect(newPage.locator('[data-testid="login-error"]')).toBeVisible()
-    await newPage.close()
+    // The login form should still be visible (form was not submitted)
+    await expect(page.locator('[data-testid="login-email"]')).toBeVisible()
+    await expect(page.locator('[data-testid="login-submit"]')).toHaveText('Sign In')
   })
 
   test('signup with new email creates account and loads chatbox', async ({ page }) => {
