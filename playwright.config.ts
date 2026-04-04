@@ -17,7 +17,7 @@ export default defineConfig({
       timeout: 30000,
     },
     {
-      command: 'CHATBRIDGE_SERVER_URL=http://localhost:3000 pnpm dev:web',
+      command: 'CHATBRIDGE_SERVER_URL=http://localhost:3000 npx vite -c vite.renderer.config.ts',
       url: 'http://localhost:1212',
       reuseExistingServer: true,
       timeout: 60000,

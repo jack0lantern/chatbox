@@ -18,8 +18,8 @@ function initPlatform(): Platform {
     basePlatform = new WebPlatform()
   }
 
-  // Wrap with ServerPlatform when CHATBRIDGE_SERVER_URL is configured
-  if (process.env.CHATBRIDGE_SERVER_URL) {
+  // Wrap with ServerPlatform when ChatBridge mode is enabled
+  if (process.env.CHATBRIDGE_ENABLED) {
     return new ServerPlatform(basePlatform)
   }
 

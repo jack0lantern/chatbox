@@ -4,7 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ScalableIcon } from '@/components/common/ScalableIcon'
 
-const serverUrl = process.env.CHATBRIDGE_SERVER_URL
+const serverUrl = process.env.CHATBRIDGE_SERVER_URL ?? ''
+const chatbridgeEnabled = !!process.env.CHATBRIDGE_ENABLED
 
 type NextAuthSession = {
   user?: {
@@ -14,7 +15,7 @@ type NextAuthSession = {
 }
 
 async function fetchSession(): Promise<NextAuthSession> {
-  if (!serverUrl) {
+  if (!chatbridgeEnabled) {
     return {}
   }
   const res = await fetch(`${serverUrl}/api/auth/session`, { credentials: 'include' })
@@ -25,7 +26,7 @@ async function fetchSession(): Promise<NextAuthSession> {
 }
 
 async function signOutViaNextAuth(): Promise<void> {
-  if (!serverUrl) {
+  if (!chatbridgeEnabled) {
     throw new Error('ChatBridge server URL not configured')
   }
   const csrfRes = await fetch(`${serverUrl}/api/auth/csrf`, { credentials: 'include' })
@@ -65,7 +66,7 @@ export function ChatBridgeAccountSection() {
   } = useQuery({
     queryKey: ['chatbridge-session', serverUrl],
     queryFn: fetchSession,
-    enabled: Boolean(serverUrl),
+    enabled: chatbridgeEnabled,
     staleTime: 60_000,
     refetchOnWindowFocus: true,
   })
@@ -78,7 +79,7 @@ export function ChatBridgeAccountSection() {
     },
   })
 
-  if (!serverUrl) {
+  if (!chatbridgeEnabled) {
     return null
   }
 

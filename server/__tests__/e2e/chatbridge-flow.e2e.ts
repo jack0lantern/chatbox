@@ -132,7 +132,6 @@ test.describe('Post-Login Initialization', () => {
 
 test.describe('Chess Plugin', () => {
   test('plugin tools are loaded after initialization', async ({ page }) => {
-    // Listen for console messages about tools
     const toolLogs: string[] = []
     page.on('console', (msg) => {
       const text = msg.text()
@@ -144,9 +143,51 @@ test.describe('Chess Plugin', () => {
     await login(page, CHESS_EMAIL, TEST_PASSWORD)
     await page.waitForTimeout(10000)
 
-    // Check that plugin tools were loaded by looking for console debug output
-    // The stream-text.ts has: console.debug('tools', tools)
-    // We verify the app initialized successfully (no login screen)
     await expect(page.locator('[data-testid="login-email"]')).not.toBeVisible()
+  })
+
+  test('send "lets play chess" in chat', async ({ page }) => {
+    // Capture all console output for debugging
+    const consoleLogs: string[] = []
+    page.on('console', (msg) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`))
+    page.on('pageerror', (err) => consoleLogs.push(`[PAGE_ERROR] ${err.message}`))
+
+    // Login and wait for app to initialize
+    await login(page, CHESS_EMAIL, TEST_PASSWORD)
+    await page.waitForTimeout(8000)
+    await expect(page.locator('[data-testid="login-email"]')).not.toBeVisible()
+
+    // Create a new chat session
+    const newChatBtn = page.locator('[data-testid="new-chat-button"]')
+    if (await newChatBtn.isVisible()) {
+      await newChatBtn.click()
+      await page.waitForTimeout(1000)
+    }
+
+    // Wait for message input to be ready
+    await page.waitForSelector('[data-testid="message-input"]', { timeout: 10000 })
+
+    // Type and send "lets play chess"
+    await page.fill('[data-testid="message-input"]', 'lets play chess')
+    await page.press('[data-testid="message-input"]', 'Enter')
+
+    // Wait for the message to appear and AI to process
+    await page.waitForTimeout(15000)
+
+    // Take a screenshot for debugging
+    await page.screenshot({ path: 'test-results/chess-prompt.png', fullPage: true })
+
+    // Log console output for debugging
+    const pluginLogs = consoleLogs.filter(l =>
+      l.includes('plugin') || l.includes('chess') || l.includes('tools') || l.includes('error') || l.includes('ERROR')
+    )
+    console.log('=== Relevant console logs ===')
+    for (const log of pluginLogs.slice(-30)) {
+      console.log(log)
+    }
+
+    // Verify the message was sent (it should appear in the message list)
+    const bodyText = await page.textContent('body')
+    expect(bodyText).toContain('lets play chess')
   })
 })

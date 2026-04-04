@@ -32,9 +32,8 @@ initSettingsStore()
     ]
     console.info(`mcp bootstrap ${servers.length} servers, with license key: ${!!licenseKey}`)
     mcpController.bootstrap(servers)
-    const chatbridgeServerUrl = process.env.CHATBRIDGE_SERVER_URL
-    if (chatbridgeServerUrl) {
-      pluginToolProviderInstance.loadPlugins(chatbridgeServerUrl).catch((err) => {
+    if (process.env.CHATBRIDGE_ENABLED) {
+      pluginToolProviderInstance.loadPlugins('').catch((err) => {
         console.error('Failed to load plugins:', err)
       })
     }

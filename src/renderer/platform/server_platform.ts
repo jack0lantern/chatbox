@@ -5,11 +5,7 @@ import type { Exporter, Platform, PlatformType } from './interfaces'
 import type { KnowledgeBaseController } from './knowledge-base/interface'
 
 async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
-  const baseUrl = process.env.CHATBRIDGE_SERVER_URL
-  if (!baseUrl) {
-    throw new Error('CHATBRIDGE_SERVER_URL is not configured')
-  }
-  return fetch(`${baseUrl}${path}`, {
+  return fetch(path, {
     ...options,
     credentials: 'include',
     headers: {

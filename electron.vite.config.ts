@@ -260,6 +260,19 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 1212,
         strictPort: true,
+        proxy: process.env.CHATBRIDGE_SERVER_URL
+          ? {
+              '/api': {
+                target: process.env.CHATBRIDGE_SERVER_URL,
+                changeOrigin: true,
+                cookieDomainRewrite: 'localhost',
+              },
+              '/plugins': {
+                target: process.env.CHATBRIDGE_SERVER_URL,
+                changeOrigin: true,
+              },
+            }
+          : undefined,
       },
       define: {
         'process.type': '"renderer"',
@@ -269,7 +282,8 @@ export default defineConfig(({ mode }) => {
         'process.env.CHATBOX_BUILD_CHANNEL': JSON.stringify(process.env.CHATBOX_BUILD_CHANNEL || 'unknown'),
         'process.env.USE_LOCAL_API': JSON.stringify(process.env.USE_LOCAL_API || ''),
         'process.env.USE_BETA_API': JSON.stringify(process.env.USE_BETA_API || ''),
-        'process.env.CHATBRIDGE_SERVER_URL': JSON.stringify(process.env.CHATBRIDGE_SERVER_URL || ''),
+        'process.env.CHATBRIDGE_SERVER_URL': JSON.stringify(process.env.CHATBRIDGE_SERVER_URL ? '' : ''),
+        'process.env.CHATBRIDGE_ENABLED': JSON.stringify(process.env.CHATBRIDGE_SERVER_URL ? 'true' : ''),
       },
       optimizeDeps: {
         include: ['mermaid'],

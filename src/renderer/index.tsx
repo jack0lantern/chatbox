@@ -125,7 +125,8 @@ const tid = setTimeout(() => {
 }, 1000)
 
 // 等待初始化完成后再渲染
-const serverUrl = process.env.CHATBRIDGE_SERVER_URL
+const serverUrl = process.env.CHATBRIDGE_SERVER_URL ?? ''
+const chatbridgeEnabled = !!process.env.CHATBRIDGE_ENABLED
 
 function startApp() {
   initializeApp()
@@ -173,7 +174,7 @@ function startApp() {
     })
 }
 
-if (serverUrl) {
+if (chatbridgeEnabled) {
   const checkAuth = async () => {
     try {
       const res = await fetch(`${serverUrl}/api/auth/session`, {
