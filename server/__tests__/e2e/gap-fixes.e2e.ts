@@ -182,6 +182,101 @@ test.describe('Gap 1 & 2: Chess Stockfish + react-chessboard', () => {
     expect(hintResult.payload.result.from).toMatch(/^[a-h][1-8]$/)
     expect(hintResult.payload.result.to).toMatch(/^[a-h][1-8]$/)
   })
+
+  test('get_game_state returns board snapshot after start_game', async ({ page }) => {
+    await page.addInitScript(() => {
+      ;(window as any).__pluginMessages = []
+      const origPostMessage = window.postMessage.bind(window)
+      window.parent.postMessage = (data: any, origin: any) => {
+        ;(window as any).__pluginMessages.push(data)
+        origPostMessage(data, origin)
+      }
+    })
+
+    await page.goto(`${BASE_URL}/plugins/chess/index.html`)
+    await page.waitForTimeout(5000)
+
+    // Start game first
+    await page.evaluate(() => {
+      window.postMessage({
+        type: 'INVOKE_TOOL',
+        invocationId: 'gap-state-start',
+        payload: {
+          toolName: 'start_game',
+          parameters: { difficulty: 'easy', color: 'white' },
+        },
+      }, '*')
+    })
+    await page.waitForTimeout(2000)
+
+    // Request game state
+    await page.evaluate(() => {
+      window.postMessage({
+        type: 'INVOKE_TOOL',
+        invocationId: 'gap-state-1',
+        payload: {
+          toolName: 'get_game_state',
+          parameters: {},
+        },
+      }, '*')
+    })
+    await page.waitForTimeout(2000)
+
+    const stateResult = await page.evaluate(() => {
+      return (window as any).__pluginMessages?.find(
+        (m: any) => m.type === 'TASK_COMPLETE' && m.invocationId === 'gap-state-1'
+      )
+    })
+    expect(stateResult).toBeTruthy()
+    const result = stateResult.payload.result
+    expect(result.gameStarted).toBe(true)
+    expect(typeof result.fen).toBe('string')
+    expect(Array.isArray(result.moveHistory)).toBe(true)
+    expect(result.turn).toBe('w')
+    expect(result.playerColor).toBe('white')
+    expect(result.difficulty).toBe('easy')
+    expect(typeof result.inCheck).toBe('boolean')
+    expect(typeof result.isCheckmate).toBe('boolean')
+    expect(typeof result.isStalemate).toBe('boolean')
+    expect(typeof result.isDraw).toBe('boolean')
+  })
+
+  test('get_game_state with no active game returns gameStarted: false', async ({ page }) => {
+    await page.addInitScript(() => {
+      ;(window as any).__pluginMessages = []
+      const origPostMessage = window.postMessage.bind(window)
+      window.parent.postMessage = (data: any, origin: any) => {
+        ;(window as any).__pluginMessages.push(data)
+        origPostMessage(data, origin)
+      }
+    })
+
+    await page.goto(`${BASE_URL}/plugins/chess/index.html`)
+    await page.waitForTimeout(5000)
+
+    // Call get_game_state without starting a game
+    await page.evaluate(() => {
+      window.postMessage({
+        type: 'INVOKE_TOOL',
+        invocationId: 'gap-state-nogame',
+        payload: {
+          toolName: 'get_game_state',
+          parameters: {},
+        },
+      }, '*')
+    })
+    await page.waitForTimeout(2000)
+
+    const stateResult = await page.evaluate(() => {
+      return (window as any).__pluginMessages?.find(
+        (m: any) => m.type === 'TASK_COMPLETE' && m.invocationId === 'gap-state-nogame'
+      )
+    })
+    expect(stateResult).toBeTruthy()
+    const result = stateResult.payload.result
+    expect(result.gameStarted).toBe(false)
+    expect(result.fen).toBeNull()
+  })
 })
 
 // ---------------------------------------------------------------------------

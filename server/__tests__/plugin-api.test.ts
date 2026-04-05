@@ -135,4 +135,14 @@ describe('plugin API', () => {
     )
     expect(res.status).toBe(401)
   })
+
+  it('chess plugin toolSchemas includes get_game_state', async () => {
+    const res = await getPlugins(new Request('http://localhost/api/plugins'))
+    const data = await res.json()
+    const chess = data.plugins.find((p: any) => p.appSlug === 'chess')
+    expect(chess).toBeTruthy()
+    expect(Array.isArray(chess.toolSchemas)).toBe(true)
+    const toolNames = chess.toolSchemas.map((t: any) => t.name)
+    expect(toolNames).toContain('get_game_state')
+  })
 })
