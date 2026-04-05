@@ -654,6 +654,55 @@ async function handleStartGame(invId, params) {
   sendStateUpdate(buildStatePayload());
 }
 
+function handleGetGameState(invId) {
+  currentInvocationId = invId;
+  const { chess, gameActive, difficulty, playerColor, moveHistory } = appState;
+
+  if (!chess || !gameActive) {
+    sendTaskComplete({
+      gameStarted: false,
+      fen: null,
+      message: 'No game in progress. Start a game first.',
+    });
+    return;
+  }
+
+  const isCheckmate = chess.isCheckmate();
+  const isStalemate = chess.isStalemate();
+  const isDraw = chess.isDraw();
+  const isGameOver = chess.isGameOver();
+  const inCheck = chess.inCheck();
+  const turn = chess.turn(); // 'w' or 'b'
+
+  let summary = '';
+  if (isCheckmate) {
+    summary = (turn === 'w' ? 'Black' : 'White') + ' wins by checkmate.';
+  } else if (isStalemate) {
+    summary = 'Game is a stalemate.';
+  } else if (isDraw) {
+    summary = 'Game is a draw.';
+  } else if (inCheck) {
+    summary = (turn === 'w' ? 'White' : 'Black') + ' is in check.';
+  } else {
+    summary = (turn === 'w' ? 'White' : 'Black') + " to move.";
+  }
+
+  sendTaskComplete({
+    gameStarted: true,
+    fen: chess.fen(),
+    moveHistory: [...moveHistory],
+    turn,
+    inCheck,
+    isCheckmate,
+    isStalemate,
+    isDraw,
+    isGameOver,
+    playerColor,
+    difficulty,
+    summary,
+  });
+}
+
 async function handleGetHint(invId, params) {
   currentInvocationId = invId;
   const { chess, difficulty } = appState;
@@ -785,6 +834,7 @@ window.addEventListener('message', (event) => {
   if (type === 'INVOKE_TOOL') {
     const { toolName, parameters } = payload || {};
     if (toolName === 'start_game')  handleStartGame(invocationId, parameters);
+    else if (toolName === 'get_game_state') handleGetGameState(invocationId);
     else if (toolName === 'get_hint')   handleGetHint(invocationId, parameters);
     else if (toolName === 'end_game')   handleEndGame(invocationId);
     else if (toolName === 'undo_move')  handleUndoMove(invocationId);
