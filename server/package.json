@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev --port 3000",
     "build": "next build",
+    "postinstall": "prisma generate",
     "start": "next start",
+    "start:railway": "prisma db push && prisma db seed && next start",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
@@ -19,18 +21,17 @@
     "next": "^15.3.0",
     "next-auth": "^4.24.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "tsx": "^4.21.0"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "devDependencies": {
-    "@playwright/test": "1.58.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "prisma": "^6.5.0",
-    "tsx": "^4.21.0",
     "typescript": "^5.7.0",
     "vitest": "^3.1.0"
   }

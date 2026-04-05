@@ -3,6 +3,7 @@ import { IconX } from '@tabler/icons-react'
 import { useSetAtom } from 'jotai'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSidebarWidth } from '@/hooks/useScreenChange'
+import { chatbridgeApiUrl } from '@/lib/chatbridgeServerUrl'
 import { pluginManager } from '@/packages/plugins/pluginManager'
 import type { PluginDefinition } from '@/packages/plugins/pluginToolProvider'
 import { pluginToolProviderInstance } from '@/packages/plugins/pluginToolProvider'
@@ -107,7 +108,7 @@ export default function PluginContainer() {
         // Restore saved state from backend
         const slug = activePluginRef.current?.pluginSlug
         if (slug && bridgeRef.current) {
-          fetch(`/api/plugins/${slug}/state`, { credentials: 'include' })
+          fetch(chatbridgeApiUrl(`/api/plugins/${slug}/state`), { credentials: 'include' })
             .then(res => res.ok ? res.json() : null)
             .then(data => {
               if (data?.state && bridgeRef.current) {
@@ -123,7 +124,7 @@ export default function PluginContainer() {
         // Persist to backend
         const slug = activePluginRef.current?.pluginSlug
         if (slug && invocationId) {
-          fetch(`/api/plugins/${slug}/state`, {
+          fetch(chatbridgeApiUrl(`/api/plugins/${slug}/state`), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -173,6 +174,10 @@ export default function PluginContainer() {
 
   const { plugin } = activePlugin
   const sidebarOffset = showSidebar ? sidebarWidth : 0
+  const iframeSrc =
+    plugin.iframeUrl.startsWith('http://') || plugin.iframeUrl.startsWith('https://')
+      ? plugin.iframeUrl
+      : chatbridgeApiUrl(plugin.iframeUrl)
 
   return (
     <div
@@ -209,7 +214,7 @@ export default function PluginContainer() {
       </Group>
       <iframe
         ref={iframeRef}
-        src={plugin.iframeUrl}
+        src={iframeSrc}
         sandbox="allow-scripts allow-same-origin"
         style={{
           width: '100%',

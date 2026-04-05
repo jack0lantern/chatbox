@@ -3,6 +3,7 @@ import { IconLogout } from '@tabler/icons-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ScalableIcon } from '@/components/common/ScalableIcon'
+import { chatbridgeApiUrl } from '@/lib/chatbridgeServerUrl'
 
 const chatbridgeEnabled = !!process.env.CHATBRIDGE_SERVER_URL
 
@@ -17,7 +18,7 @@ async function fetchSession(): Promise<NextAuthSession> {
   if (!chatbridgeEnabled) {
     return {}
   }
-  const res = await fetch('/api/auth/session', { credentials: 'include' })
+  const res = await fetch(chatbridgeApiUrl('/api/auth/session'), { credentials: 'include' })
   if (!res.ok) {
     throw new Error('session request failed')
   }
@@ -25,7 +26,7 @@ async function fetchSession(): Promise<NextAuthSession> {
 }
 
 async function signOutViaNextAuth(): Promise<void> {
-  const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' })
+  const csrfRes = await fetch(chatbridgeApiUrl('/api/auth/csrf'), { credentials: 'include' })
   if (!csrfRes.ok) {
     throw new Error('csrf request failed')
   }
@@ -35,9 +36,10 @@ async function signOutViaNextAuth(): Promise<void> {
   }
   const body = new URLSearchParams({
     csrfToken,
-    callbackUrl: '/login',
+    callbackUrl: typeof window !== 'undefined' ? `${window.location.origin}/` : '/login',
+    json: 'true',
   })
-  const signOutRes = await fetch('/api/auth/signout', {
+  const signOutRes = await fetch(chatbridgeApiUrl('/api/auth/signout'), {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -45,6 +47,14 @@ async function signOutViaNextAuth(): Promise<void> {
   })
   if (!signOutRes.ok) {
     throw new Error('sign out failed')
+  }
+  const ct = signOutRes.headers.get('content-type') ?? ''
+  if (ct.includes('application/json')) {
+    const data = (await signOutRes.json()) as { url?: string }
+    if (data.url?.includes('csrf=true')) {
+      throw new Error('sign out failed')
+    }
+    return
   }
 }
 
@@ -138,6 +148,7 @@ export function ChatBridgeAccountSection() {
           loaderProps={{ size: 14 }}
           leftSection={<ScalableIcon icon={IconLogout} size={16} />}
           onClick={() => signOutMutation.mutate()}
+          data-testid="chatbridge-logout"
         >
           {signOutMutation.isPending ? t('Signing out') : t('Log out')}
         </Button>

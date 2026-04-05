@@ -1,11 +1,12 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: <any> */
 import type { Config, Language, Settings, ShortcutSetting } from '@shared/types'
+import { chatbridgeApiUrl } from '@/lib/chatbridgeServerUrl'
 import type { ImageGenerationStorage } from '@/storage/ImageGenerationStorage'
 import type { Exporter, Platform, PlatformType } from './interfaces'
 import type { KnowledgeBaseController } from './knowledge-base/interface'
 
 async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
-  return fetch(path, {
+  return fetch(chatbridgeApiUrl(path), {
     ...options,
     credentials: 'include',
     headers: {

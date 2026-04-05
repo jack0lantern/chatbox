@@ -2,18 +2,19 @@ import { Alert, Button, MantineProvider, Paper, PasswordInput, Stack, Text, Text
 import '@mantine/core/styles.css'
 import { IconAlertCircle } from '@tabler/icons-react'
 import { useCallback, useState } from 'react'
+import { chatbridgeApiUrl } from '@/lib/chatbridgeServerUrl'
 
 interface LoginScreenProps {
   onSuccess: () => void
 }
 
 async function authenticate(email: string, password: string): Promise<void> {
-  const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' })
+  const csrfRes = await fetch(chatbridgeApiUrl('/api/auth/csrf'), { credentials: 'include' })
   if (!csrfRes.ok) throw new Error('Could not reach server')
   const { csrfToken } = await csrfRes.json()
 
   const body = new URLSearchParams({ csrfToken, email, password, json: 'true' })
-  const res = await fetch('/api/auth/callback/credentials', {
+  const res = await fetch(chatbridgeApiUrl('/api/auth/callback/credentials'), {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -22,7 +23,7 @@ async function authenticate(email: string, password: string): Promise<void> {
 
   if (!res.ok) throw new Error('Invalid email or password')
 
-  const sessionRes = await fetch('/api/auth/session', { credentials: 'include' })
+  const sessionRes = await fetch(chatbridgeApiUrl('/api/auth/session'), { credentials: 'include' })
   const session = await sessionRes.json()
   if (!session?.user) throw new Error('Authentication failed. Please try again.')
 }

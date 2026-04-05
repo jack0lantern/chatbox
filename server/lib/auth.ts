@@ -5,6 +5,9 @@ import { PrismaAdapter } from '@auth/prisma-adapter'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 
+// Production is always HTTPS on Railway; SameSite=None is required for auth from the static web client (different origin).
+const useCrossSiteAuthCookies = process.env.NODE_ENV === 'production'
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
   providers: [
@@ -74,4 +77,37 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/login',
   },
+  ...(useCrossSiteAuthCookies
+    ? {
+        useSecureCookies: true,
+        cookies: {
+          sessionToken: {
+            name: '__Secure-next-auth.session-token',
+            options: {
+              httpOnly: true,
+              sameSite: 'none',
+              path: '/',
+              secure: true,
+            },
+          },
+          callbackUrl: {
+            name: '__Secure-next-auth.callback-url',
+            options: {
+              sameSite: 'none',
+              path: '/',
+              secure: true,
+            },
+          },
+          csrfToken: {
+            name: '__Host-next-auth.csrf-token',
+            options: {
+              httpOnly: true,
+              sameSite: 'none',
+              path: '/',
+              secure: true,
+            },
+          },
+        },
+      }
+    : {}),
 }

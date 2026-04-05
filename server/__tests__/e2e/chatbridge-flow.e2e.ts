@@ -126,6 +126,22 @@ test.describe('Post-Login Initialization', () => {
     const body = await page.textContent('body')
     expect(body).toContain(INIT_EMAIL)
   })
+
+  test('log out returns to login screen', async ({ page }) => {
+    await login(page, LOGOUT_EMAIL, TEST_PASSWORD)
+    await page.waitForTimeout(8000)
+    await expect(page.locator('[data-testid="login-email"]')).not.toBeVisible()
+
+    await page.locator('[data-testid="chatbridge-logout"]').click()
+    await page.waitForSelector('[data-testid="login-email"]', { timeout: 20000 })
+
+    await expect(page.locator('[data-testid="login-email"]')).toBeVisible()
+    await expect(page.getByText('Could not sign out. Try again.')).not.toBeVisible()
+
+    const sessionRes = await page.request.get('http://localhost:1212/api/auth/session')
+    const sessionJson = await sessionRes.json()
+    expect(sessionJson?.user).toBeUndefined()
+  })
 })
 
 // ─── Group 3: Chess Plugin ───────────────────────────────────────

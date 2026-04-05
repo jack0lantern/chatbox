@@ -10,6 +10,7 @@ import ReactDOM from 'react-dom/client'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import LoginScreen from './components/auth/LoginScreen'
 import i18n from './i18n'
+import { chatbridgeApiUrl } from './lib/chatbridgeServerUrl'
 import { getLogger } from './lib/utils'
 import platform from './platform'
 import reportWebVitals from './reportWebVitals'
@@ -176,7 +177,7 @@ function startApp() {
 if (chatbridgeEnabled) {
   const checkAuth = async () => {
     try {
-      const res = await fetch('/api/auth/session', {
+      const res = await fetch(chatbridgeApiUrl('/api/auth/session'), {
         credentials: 'include',
       })
       const session = await res.json()

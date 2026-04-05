@@ -1,0 +1,7 @@
+# ChatBridge web client (repo root). The Next.js API service uses `server/railway.toml` with root directory `server`.
+[build]
+builder = "RAILPACK"
+buildCommand = "corepack enable && pnpm install --frozen-lockfile && pnpm run build:web:railway"
+
+[deploy]
+startCommand = "pnpm exec serve release/app/dist/renderer -s -l ${PORT:-8080}"

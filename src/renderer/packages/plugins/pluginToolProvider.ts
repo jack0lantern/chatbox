@@ -1,5 +1,6 @@
 import { tool, type ToolSet } from 'ai'
 import z from 'zod'
+import { getChatbridgeServerBaseUrl } from '@/lib/chatbridgeServerUrl'
 import type { PluginManager } from './pluginManager'
 
 interface PluginToolSchema {
@@ -78,7 +79,8 @@ export class PluginToolProvider {
   }
 
   async loadPlugins(serverBaseUrl: string): Promise<void> {
-    const response = await this.fetchFn(`${serverBaseUrl}/api/plugins`)
+    const base = serverBaseUrl || getChatbridgeServerBaseUrl()
+    const response = await this.fetchFn(`${base}/api/plugins`)
     if (!response.ok) {
       console.error('Failed to fetch plugins:', response.status)
       return

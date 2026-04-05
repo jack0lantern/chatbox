@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const ALLOWED_ORIGINS = new Set([
-  'http://localhost:1212',
-  'http://localhost:3000',
-])
+const DEFAULT_ORIGINS = ['http://localhost:1212', 'http://localhost:3000'] as const
+const EXTRA_ORIGINS =
+  process.env.CHATBRIDGE_ALLOWED_ORIGINS?.split(',')
+    .map((s) => s.trim())
+    .filter(Boolean) ?? []
+
+const ALLOWED_ORIGINS = new Set<string>([...DEFAULT_ORIGINS, ...EXTRA_ORIGINS])
 
 export function middleware(request: NextRequest) {
   const origin = request.headers.get('origin') ?? ''
@@ -17,7 +20,7 @@ export function middleware(request: NextRequest) {
       headers: {
         'Access-Control-Allow-Origin': isAllowed ? origin : '',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With',
         'Access-Control-Allow-Credentials': 'true',
         'Access-Control-Max-Age': '86400',
       },

@@ -9,6 +9,9 @@ import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
+const chatbridgeUrl = process.env.CHATBRIDGE_SERVER_URL || ''
+const isProd = process.env.NODE_ENV === 'production'
+
 export default defineConfig({
   root: path.resolve(__dirname, 'src/renderer'),
   plugins: [
@@ -49,6 +52,8 @@ export default defineConfig({
     'process.env.CHATBOX_BUILD_CHANNEL': JSON.stringify('unknown'),
     'process.env.USE_LOCAL_API': JSON.stringify(''),
     'process.env.USE_BETA_API': JSON.stringify(''),
-    'process.env.CHATBRIDGE_SERVER_URL': JSON.stringify(process.env.CHATBRIDGE_SERVER_URL ? 'proxy' : ''),
+    'process.env.CHATBRIDGE_SERVER_URL': JSON.stringify(
+      chatbridgeUrl ? (isProd ? chatbridgeUrl : 'proxy') : ''
+    ),
   },
 })
