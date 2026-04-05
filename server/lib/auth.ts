@@ -2,6 +2,7 @@ import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import SpotifyProvider from 'next-auth/providers/spotify'
 import { PrismaAdapter } from '@auth/prisma-adapter'
+import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 
 export const authOptions: NextAuthOptions = {
@@ -15,15 +16,28 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
+        const password = credentials.password
         let user = await prisma.user.findUnique({
           where: { email: credentials.email },
         })
         if (!user) {
+          const passwordHash = await bcrypt.hash(password, 10)
           user = await prisma.user.create({
             data: {
               email: credentials.email,
               name: credentials.email.split('@')[0],
+              passwordHash,
             },
+          })
+        } else if (user.passwordHash) {
+          const valid = await bcrypt.compare(password, user.passwordHash)
+          if (!valid) return null
+        } else {
+          // OAuth user or pre-migration user without a password — set hash
+          const passwordHash = await bcrypt.hash(password, 10)
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: { passwordHash },
           })
         }
         return { id: user.id, email: user.email, name: user.name }

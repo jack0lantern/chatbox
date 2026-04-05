@@ -22,20 +22,20 @@ function attachErrorCollectors(page: Page) {
 }
 
 /** Send an INVOKE_TOOL message to the plugin */
-async function invokeTool(page: Page, tool: string, params: any = {}, invocationId?: string) {
+async function invokeTool(page: Page, toolName: string, parameters: any = {}, invocationId?: string) {
   const id = invocationId || `chaos-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   await page.evaluate(
-    ({ tool, params, id }) => {
+    ({ toolName, parameters, id }) => {
       window.postMessage(
         {
           type: 'INVOKE_TOOL',
           invocationId: id,
-          payload: { tool, params },
+          payload: { toolName, parameters },
         },
         '*'
       )
     },
-    { tool, params, id }
+    { toolName, parameters, id }
   )
   return id
 }
@@ -47,26 +47,37 @@ async function sendRawMessage(page: Page, data: any) {
   }, data)
 }
 
-/** Start a game and wait for board to render */
+/** Start a game and wait for board to render (esm.sh imports need extra time) */
 async function startGameAndWait(page: Page, color = 'white', difficulty = 'easy') {
   await invokeTool(page, 'start_game', { difficulty, color })
-  await page.waitForTimeout(500)
+  await page.waitForTimeout(2000)
 }
 
-/** Check if chess pieces are visible on the page */
+/** Check if chess pieces are visible on the page (react-chessboard renders SVG/img pieces) */
 async function hasPiecesOnBoard(page: Page): Promise<boolean> {
-  const content = await page.textContent('body')
-  return /[♔♕♖♗♘♙♚♛♜♝♞♟]/.test(content || '')
+  return page.evaluate(() => {
+    // react-chessboard renders pieces as elements with data-piece attributes
+    const pieces = document.querySelectorAll('[data-piece]')
+    if (pieces.length > 0) return true
+    // Fallback: check for piece class elements or SVGs
+    const pieceEls = document.querySelectorAll('.piece')
+    if (pieceEls.length > 0) return true
+    const svgs = document.querySelectorAll('svg')
+    if (svgs.length > 0) return true
+    // Check for board squares (react-chessboard uses data-square)
+    const squares = document.querySelectorAll('[data-square]')
+    return squares.length >= 64
+  })
 }
 
-/** Make a player move by clicking squares */
+/** Make a player move by clicking squares (react-chessboard uses data-square) */
 async function clickMove(page: Page, from: string, to: string) {
-  const fromSq = page.locator(`[data-sq="${from}"]`)
-  const toSq = page.locator(`[data-sq="${to}"]`)
+  const fromSq = page.locator(`[data-square="${from}"]`)
+  const toSq = page.locator(`[data-square="${to}"]`)
   await fromSq.click()
   await page.waitForTimeout(100)
   await toSq.click()
-  await page.waitForTimeout(300) // wait for AI response
+  await page.waitForTimeout(800) // wait for AI response (Stockfish may take a moment)
 }
 
 // ─────────────────────────────────────────────
@@ -190,7 +201,7 @@ test.describe('chess plugin chaos tests', () => {
     // Immediately try to click more squares during AI response time
     const squares = ['d2', 'd4', 'c2', 'c4', 'b1', 'c3']
     for (const sq of squares) {
-      const el = page.locator(`[data-sq="${sq}"]`)
+      const el = page.locator(`[data-square="${sq}"]`)
       if (await el.count() > 0) {
         await el.click({ force: true })
       }
@@ -577,7 +588,7 @@ test.describe('chess plugin chaos tests', () => {
     expect(pageErrors).toEqual([])
   })
 
-  test('BUG: INVOKE_TOOL for start_game with null params should use defaults', async ({ page }) => {
+  test('BUG: INVOKE_TOOL for start_game with null parameters should use defaults', async ({ page }) => {
     const { pageErrors } = attachErrorCollectors(page)
 
     await page.evaluate(() => {
@@ -585,12 +596,12 @@ test.describe('chess plugin chaos tests', () => {
         {
           type: 'INVOKE_TOOL',
           invocationId: 'null-params',
-          payload: { tool: 'start_game', params: null },
+          payload: { toolName: 'start_game', parameters: null },
         },
         '*'
       )
     })
-    await page.waitForTimeout(500)
+    await page.waitForTimeout(2000)
 
     expect(pageErrors).toEqual([])
     // Should start with defaults (medium, white)

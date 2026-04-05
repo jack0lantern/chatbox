@@ -97,12 +97,12 @@ test.describe('Chess plugin scroll in full app', () => {
       }, '*')
     })
 
-    // Wait for chessboard
-    await frame.locator('.chess-board').waitFor({ timeout: 10000 })
+    // Wait for chessboard (react-chessboard renders squares with data-square attributes)
+    await frame.locator('[data-square="e2"]').waitFor({ timeout: 10000 })
     await page.waitForTimeout(500)
 
-    // Verify board is visible
-    const boardVisible = await frame.locator('.chess-board').isVisible()
+    // Verify board is visible (check for the board wrapper)
+    const boardVisible = await frame.locator('[data-square="e2"]').isVisible()
     expect(boardVisible).toBe(true)
 
     // Get iframe position
@@ -135,8 +135,8 @@ test.describe('Chess plugin scroll in full app', () => {
     const iframeStillVisible = await iframe.isVisible().catch(() => false)
     expect(iframeStillVisible).toBe(true)
 
-    // Board should still be visible inside iframe
-    const boardStillVisible = await frame.locator('.chess-board').isVisible().catch(() => false)
+    // Board should still be visible inside iframe (react-chessboard uses data-square)
+    const boardStillVisible = await frame.locator('[data-square="e2"]').isVisible().catch(() => false)
     expect(boardStillVisible).toBe(true)
 
     // Message input should still be usable

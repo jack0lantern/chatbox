@@ -118,7 +118,7 @@ export class PluginManager {
   }
 
   handleStateUpdate(_invocationId: string, _state: Record<string, unknown>): void {
-    // State persistence will be wired in PluginContainer (Task 5)
+    // Actual persistence is handled in PluginContainer via fetch to the backend API.
   }
 
   destroySession(pluginSlug: string): void {

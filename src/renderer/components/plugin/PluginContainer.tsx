@@ -104,10 +104,32 @@ export default function PluginContainer() {
       taskCompleteTimeout: (plugin.permissions.timeouts.taskComplete || 30) * 1000,
       onReady: () => {
         bridgeReadyRef.current = true
+        // Restore saved state from backend
+        const slug = activePluginRef.current?.pluginSlug
+        if (slug && bridgeRef.current) {
+          fetch(`/api/plugins/${slug}/state`, { credentials: 'include' })
+            .then(res => res.ok ? res.json() : null)
+            .then(data => {
+              if (data?.state && bridgeRef.current) {
+                bridgeRef.current.sendStateRestore('restore', data.state as Record<string, unknown>)
+              }
+            })
+            .catch(() => {})
+        }
         sendPendingInvocations()
       },
       onStateUpdate: (invocationId, state) => {
         pluginManager.handleStateUpdate(invocationId, state)
+        // Persist to backend
+        const slug = activePluginRef.current?.pluginSlug
+        if (slug && invocationId) {
+          fetch(`/api/plugins/${slug}/state`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ invocationId, state }),
+          }).catch(() => {}) // fire-and-forget, don't block plugin
+        }
       },
       onTaskComplete: (invocationId, result) => {
         pluginManager.handleTaskComplete(invocationId, result)

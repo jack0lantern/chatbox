@@ -406,12 +406,12 @@
         className: 'playlist-track' + (dragOverIndex === index ? ' drag-over' : ''),
         draggable: true,
         onDragStart: function(e) {
-          e.dataTransfer.effectAllowed = 'move';
+          if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
           onDragStart(index);
         },
         onDragOver: function(e) {
           e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
+          if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
           onDragOver(index);
         },
         onDrop: function(e) {
@@ -508,7 +508,7 @@
             }
             setSearchResults([]);
           } else {
-            setSearchResults(response.data || []);
+            setSearchResults(Array.isArray(response.data) ? response.data : []);
             setStatus({ text: 'Connected', type: 'connected' });
           }
         } catch (err) {
@@ -621,6 +621,7 @@
 
           switch (data.type) {
             case 'INVOKE_TOOL': {
+              if (!data.payload) break;
               var inv = data.invocationId;
               setCurrentInvocationId(inv);
               var tool = data.payload.toolName;
@@ -632,7 +633,7 @@
                   sendTaskComplete(inv, { message: 'Search results displayed', query: params.query });
                 });
               } else if (tool === 'create_playlist') {
-                if (params.songs && params.songs.length) {
+                if (Array.isArray(params.songs) && params.songs.length) {
                   setPlaylistName(params.playlistName || 'My Playlist');
                   setStatus({ text: 'Searching for songs...', type: '' });
                   // Search and auto-add each song
@@ -667,10 +668,14 @@
             }
             case 'STATE_RESTORE': {
               var state = data.payload && data.payload.state;
-              if (state) {
-                if (state.playlistName) setPlaylistName(state.playlistName);
-                if (state.tracks) setPlaylistTracks(state.tracks);
-                if (state.createdPlaylists) setCreatedPlaylists(state.createdPlaylists);
+              if (state && typeof state === 'object') {
+                if (typeof state.playlistName === 'string') setPlaylistName(state.playlistName);
+                if (Array.isArray(state.tracks)) {
+                  setPlaylistTracks(state.tracks.filter(function(t) {
+                    return t && typeof t === 'object' && t.uri;
+                  }));
+                }
+                if (Array.isArray(state.createdPlaylists)) setCreatedPlaylists(state.createdPlaylists);
               }
               break;
             }
@@ -678,10 +683,11 @@
               var pending = pendingRequests.get(data.requestId);
               if (pending) {
                 pendingRequests.delete(data.requestId);
-                if (data.payload.error) {
-                  pending.resolve({ error: data.payload.error, data: null });
+                var apiPayload = data.payload || {};
+                if (apiPayload.error) {
+                  pending.resolve({ error: apiPayload.error, data: null });
                 } else {
-                  pending.resolve({ data: data.payload.data, error: null });
+                  pending.resolve({ data: apiPayload.data, error: null });
                 }
               }
               break;

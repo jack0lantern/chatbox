@@ -36,11 +36,13 @@ test.afterAll(async () => {
   await prisma.$disconnect()
 })
 
-test('GET /api/plugins without auth returns 401', async ({ page }) => {
-  // Make an unauthenticated request (no session cookie)
+test('GET /api/plugins without auth returns plugin list', async ({ page }) => {
+  // Plugin schemas are public — no auth required
   const context = await page.context().browser()!.newContext()
   const res = await context.request.get(`${BASE_URL}/api/plugins`)
-  expect(res.status()).toBe(401)
+  expect(res.status()).toBe(200)
+  const data = await res.json()
+  expect(Array.isArray(data)).toBe(true)
   await context.close()
 })
 
@@ -52,10 +54,10 @@ test('login then GET /api/plugins returns array with chess, timeline, spotify', 
   expect(res.status()).toBe(200)
 
   const data = await res.json()
-  expect(Array.isArray(data.plugins)).toBe(true)
-  expect(data.plugins.length).toBeGreaterThanOrEqual(3)
+  expect(Array.isArray(data)).toBe(true)
+  expect(data.length).toBeGreaterThanOrEqual(3)
 
-  const slugs = data.plugins.map((p: any) => p.appSlug)
+  const slugs = data.map((p: any) => p.appSlug)
   expect(slugs).toContain('chess')
   expect(slugs).toContain('timeline')
   expect(slugs).toContain('spotify')

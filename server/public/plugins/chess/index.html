@@ -4,20 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chess</title>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <script>
-    (function loadChessjs() {
-      var exports = {};
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', 'https://unpkg.com/chess.js@1.0.0-beta.8/dist/cjs/chess.js', false);
-      xhr.send();
-      if (xhr.status < 200 || xhr.status >= 300) {
-        throw new Error('chess.js CDN load failed: HTTP ' + xhr.status);
-      }
-      new Function('exports', xhr.responseText)(exports);
-      window.Chess = exports.Chess;
-    })();
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18",
+      "react-dom": "https://esm.sh/react-dom@18",
+      "react-dom/client": "https://esm.sh/react-dom@18/client",
+      "react/jsx-runtime": "https://esm.sh/react@18/jsx-runtime",
+      "chess.js": "https://esm.sh/chess.js@1",
+      "react-chessboard": "https://esm.sh/react-chessboard@4?external=react,react-dom"
+    }
+  }
   </script>
   <style>
     :root {
@@ -95,128 +92,6 @@
       overflow: hidden;
       box-shadow: var(--shadow);
       border: 2px solid var(--surface2);
-    }
-
-    .board-coords-wrap {
-      display: flex;
-      align-items: center;
-    }
-
-    .coord-files {
-      display: grid;
-      grid-template-columns: repeat(8, 1fr);
-      width: 100%;
-      padding: 0 20px;
-    }
-
-    .coord-file {
-      text-align: center;
-      font-size: 11px;
-      color: var(--text-dim);
-      font-weight: 600;
-      letter-spacing: 0.5px;
-    }
-
-    .coord-ranks {
-      display: flex;
-      flex-direction: column;
-      justify-content: space-around;
-      height: 100%;
-      padding: 0 4px;
-    }
-
-    .coord-rank {
-      font-size: 11px;
-      color: var(--text-dim);
-      font-weight: 600;
-      text-align: center;
-      line-height: 1;
-    }
-
-    /* Chess board */
-    .chess-board {
-      display: grid;
-      grid-template-columns: repeat(8, 1fr);
-      grid-template-rows: repeat(8, 1fr);
-      width: 480px;
-      height: 480px;
-      user-select: none;
-    }
-
-    .square {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      position: relative;
-      transition: filter 0.1s ease;
-    }
-
-    .square:hover {
-      filter: brightness(1.1);
-    }
-
-    .square.light { background: var(--light-sq); }
-    .square.dark  { background: var(--dark-sq); }
-
-    .square.selected {
-      background: var(--selected) !important;
-      box-shadow: inset 0 0 0 3px rgba(0,0,0,0.3);
-    }
-
-    .square.last-move {
-      background: var(--last-move) !important;
-    }
-
-    .square.in-check {
-      background: var(--check) !important;
-    }
-
-    /* Legal move dots */
-    .legal-dot {
-      position: absolute;
-      width: 30%;
-      height: 30%;
-      background: rgba(0, 0, 0, 0.15);
-      border-radius: 50%;
-      pointer-events: none;
-      z-index: 2;
-    }
-
-    .legal-capture {
-      position: absolute;
-      width: 85%;
-      height: 85%;
-      border-radius: 50%;
-      border: 6px solid rgba(0, 0, 0, 0.15);
-      background: transparent;
-      pointer-events: none;
-      z-index: 2;
-    }
-
-    /* Chess pieces */
-    .piece {
-      font-size: 44px;
-      line-height: 1;
-      cursor: pointer;
-      transition: transform 0.1s ease;
-      z-index: 1;
-    }
-
-    .white-piece {
-      color: #ffffff;
-      -webkit-text-stroke: 1px #444;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-    }
-
-    .black-piece {
-      color: #222222;
-      -webkit-text-stroke: 1px #000;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-    }
-
-    .piece:hover {
-      transform: scale(1.1);
     }
 
     /* Sidebar */
@@ -480,51 +355,30 @@
     .start-btn:hover { background: #c73650; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(233,69,96,0.4); }
     .start-btn:active { transform: translateY(0); }
 
-    /* Promotion modal */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-    }
-
-    .modal {
-      background: var(--surface);
-      border-radius: var(--border-radius);
-      padding: 24px;
-      border: 1px solid var(--surface2);
-      box-shadow: var(--shadow);
+    /* Engine indicator */
+    .engine-indicator {
+      font-size: 11px;
+      color: var(--text-dim);
       text-align: center;
+      margin-top: 4px;
+      opacity: 0.7;
     }
 
-    .modal h3 {
-      margin-bottom: 16px;
-      color: var(--text);
+    .engine-indicator.stockfish { color: #7fc97f; }
+    .engine-indicator.fallback { color: var(--accent); }
+
+    /* AI thinking indicator */
+    .ai-thinking {
+      font-size: 12px;
+      color: var(--accent);
+      text-align: center;
+      margin-top: 4px;
+      animation: pulse 1.2s ease-in-out infinite;
     }
 
-    .promotion-pieces {
-      display: flex;
-      gap: 12px;
-      justify-content: center;
-    }
-
-    .promo-btn {
-      font-size: 48px;
-      background: var(--surface2);
-      border: 2px solid transparent;
-      border-radius: 8px;
-      padding: 8px;
-      cursor: pointer;
-      transition: all 0.15s;
-      line-height: 1;
-    }
-
-    .promo-btn:hover {
-      border-color: var(--accent);
-      background: var(--bg);
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
     }
 
     /* Responsive */
@@ -533,11 +387,6 @@
         flex-direction: column;
         align-items: center;
       }
-      .chess-board {
-        width: 320px;
-        height: 320px;
-      }
-      .piece { font-size: 30px; }
       .sidebar { width: 100%; min-width: unset; }
     }
   </style>
@@ -545,24 +394,113 @@
 <body>
 <div id="root"></div>
 
-<script>
-// ─────────────────────────────────────────────
-// Globals / constants
-// ─────────────────────────────────────────────
-const { createElement: h, useState, useEffect, useCallback, useRef } = React;
+<script type="module">
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { Chess } from 'chess.js';
+import { Chessboard } from 'react-chessboard';
 
-const PIECE_UNICODE = {
-  wK: '♚', wQ: '♛', wR: '♜', wB: '♝', wN: '♞', wP: '♟',
-  bK: '♚', bQ: '♛', bR: '♜', bB: '♝', bN: '♞', bP: '♟',
-};
+const { createElement: h, useState, useEffect, useCallback, useRef, useMemo } = React;
 
-const FILES = ['a','b','c','d','e','f','g','h'];
-const RANKS = ['8','7','6','5','4','3','2','1'];
+// -----------------------------------------------
+// Stockfish Engine
+// -----------------------------------------------
+const STOCKFISH_CDN = 'https://unpkg.com/stockfish.js@10.0.2/stockfish.js';
+const DEPTH_MAP = { easy: 1, medium: 5, hard: 10 };
 
-// ─────────────────────────────────────────────
-// AI Logic
-// ─────────────────────────────────────────────
-function getAIMove(chess, difficulty) {
+let stockfishWorker = null;
+let stockfishReady = false;
+let stockfishFailed = false;
+let onStockfishMessage = null;
+
+async function initStockfish() {
+  try {
+    const response = await fetch(STOCKFISH_CDN);
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const source = await response.text();
+    const blob = new Blob([source], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    stockfishWorker = new Worker(url);
+    URL.revokeObjectURL(url);
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Stockfish init timeout'));
+      }, 10000);
+
+      let gotUciOk = false;
+
+      stockfishWorker.onmessage = (e) => {
+        const line = typeof e.data === 'string' ? e.data : '';
+        if (!gotUciOk && line.includes('uciok')) {
+          gotUciOk = true;
+          stockfishWorker.postMessage('isready');
+        }
+        if (gotUciOk && line.includes('readyok')) {
+          clearTimeout(timeout);
+          stockfishReady = true;
+          // Switch to dynamic handler
+          stockfishWorker.onmessage = (ev) => {
+            if (onStockfishMessage) onStockfishMessage(typeof ev.data === 'string' ? ev.data : '');
+          };
+          resolve();
+        }
+      };
+
+      stockfishWorker.onerror = (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      };
+
+      stockfishWorker.postMessage('uci');
+    });
+  } catch (err) {
+    console.warn('Stockfish failed to load, using fallback AI:', err);
+    stockfishFailed = true;
+    stockfishReady = false;
+  }
+}
+
+function getStockfishMove(fen, difficulty) {
+  return new Promise((resolve, reject) => {
+    if (!stockfishWorker || !stockfishReady) {
+      reject(new Error('Stockfish not available'));
+      return;
+    }
+
+    const depth = DEPTH_MAP[difficulty] || 5;
+    const timeout = setTimeout(() => {
+      onStockfishMessage = null;
+      reject(new Error('Stockfish move timeout'));
+    }, 15000);
+
+    onStockfishMessage = (line) => {
+      if (line.startsWith('bestmove')) {
+        clearTimeout(timeout);
+        onStockfishMessage = null;
+        const parts = line.split(' ');
+        const moveStr = parts[1]; // e.g. "e2e4" or "e7e8q"
+        if (!moveStr || moveStr === '(none)') {
+          reject(new Error('No best move'));
+          return;
+        }
+        resolve({
+          from: moveStr.substring(0, 2),
+          to: moveStr.substring(2, 4),
+          promotion: moveStr.length > 4 ? moveStr[4] : undefined,
+        });
+      }
+    };
+
+    stockfishWorker.postMessage('position fen ' + fen);
+    stockfishWorker.postMessage('go depth ' + depth);
+  });
+}
+
+// -----------------------------------------------
+// Heuristic fallback AI (original logic)
+// -----------------------------------------------
+function getHeuristicMove(chess, difficulty) {
   const moves = chess.moves({ verbose: true });
   if (moves.length === 0) return null;
 
@@ -579,13 +517,11 @@ function getAIMove(chess, difficulty) {
   // hard: prefer captures > checks > random
   const captures = moves.filter(m => m.captured);
   if (captures.length > 0) {
-    // pick highest-value capture
     const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 100 };
     captures.sort((a, b) => (pieceValues[b.captured] || 0) - (pieceValues[a.captured] || 0));
     return captures[0];
   }
 
-  // check if any move gives check
   const checkMoves = moves.filter(m => {
     try { chess.move(m); } catch { return false; }
     const inCheck = chess.inCheck();
@@ -597,9 +533,25 @@ function getAIMove(chess, difficulty) {
   return moves[Math.floor(Math.random() * moves.length)];
 }
 
-// ─────────────────────────────────────────────
+// Unified AI move: tries Stockfish, falls back to heuristic
+async function getAIMove(chess, difficulty) {
+  if (stockfishReady && !stockfishFailed) {
+    try {
+      const sfMove = await getStockfishMove(chess.fen(), difficulty);
+      return sfMove;
+    } catch (err) {
+      console.warn('Stockfish move failed, using fallback:', err);
+    }
+  }
+  // Fallback
+  const move = getHeuristicMove(chess, difficulty);
+  if (!move) return null;
+  return { from: move.from, to: move.to, promotion: move.promotion };
+}
+
+// -----------------------------------------------
 // postMessage helpers
-// ─────────────────────────────────────────────
+// -----------------------------------------------
 let currentInvocationId = null;
 
 function sendMessage(type, payload) {
@@ -630,9 +582,9 @@ function sendError(message) {
   }, '*');
 }
 
-// ─────────────────────────────────────────────
+// -----------------------------------------------
 // App state (module-level, shared with message handlers)
-// ─────────────────────────────────────────────
+// -----------------------------------------------
 let appState = {
   chess: null,
   gameActive: false,
@@ -644,6 +596,7 @@ let appState = {
 };
 
 let setAppStateExternal = null; // will be set by React
+let setAiThinkingExternal = null;
 
 function buildStatePayload() {
   const { chess, difficulty, playerColor, moveHistory, undoStack, redoStack } = appState;
@@ -657,10 +610,10 @@ function buildStatePayload() {
   };
 }
 
-// ─────────────────────────────────────────────
+// -----------------------------------------------
 // Tool handlers
-// ─────────────────────────────────────────────
-function handleStartGame(invId, params) {
+// -----------------------------------------------
+async function handleStartGame(invId, params) {
   currentInvocationId = invId;
   const { difficulty = 'medium', color = 'white' } = params || {};
 
@@ -682,10 +635,16 @@ function handleStartGame(invId, params) {
 
   // If player is black, AI moves first
   if (playerColor === 'black') {
-    const aiMove = getAIMove(chess, difficulty);
-    if (aiMove) {
-      try { chess.move(aiMove); } catch (e) { /* invalid AI move */ }
-      appState.moveHistory.push(aiMove.san);
+    if (setAiThinkingExternal) setAiThinkingExternal(true);
+    try {
+      const aiMove = await getAIMove(chess, difficulty);
+      if (aiMove) {
+        let result;
+        try { result = chess.move(aiMove); } catch (e) { /* invalid AI move */ }
+        if (result) appState.moveHistory.push(result.san);
+      }
+    } finally {
+      if (setAiThinkingExternal) setAiThinkingExternal(false);
     }
   }
 
@@ -695,19 +654,23 @@ function handleStartGame(invId, params) {
   sendStateUpdate(buildStatePayload());
 }
 
-function handleGetHint(invId, params) {
+async function handleGetHint(invId, params) {
   currentInvocationId = invId;
   const { chess, difficulty } = appState;
   if (!chess || !appState.gameActive) {
     sendError('No active game');
     return;
   }
-  const move = getAIMove(chess, params?.difficulty || difficulty);
-  if (!move) {
-    sendError('No moves available');
-    return;
+  try {
+    const move = await getAIMove(chess, params?.difficulty || difficulty);
+    if (!move) {
+      sendError('No moves available');
+      return;
+    }
+    sendTaskComplete({ hint: move.from + move.to, from: move.from, to: move.to });
+  } catch (err) {
+    sendError('Failed to compute hint: ' + err.message);
   }
-  sendTaskComplete({ hint: move.from + move.to, from: move.from, to: move.to });
 }
 
 function handleEndGame(invId) {
@@ -781,7 +744,7 @@ function handleRedoMove(invId) {
     try {
       result = chess.move({ from: moveObj.from, to: moveObj.to, promotion: moveObj.promotion || 'q' });
     } catch (e) {
-      // Invalid move after state change — skip
+      // Invalid move after state change -- skip
       break;
     }
     if (result) {
@@ -814,9 +777,9 @@ function handleRestoreState(savedState) {
   }
 }
 
-// ─────────────────────────────────────────────
+// -----------------------------------------------
 // Message listener
-// ─────────────────────────────────────────────
+// -----------------------------------------------
 window.addEventListener('message', (event) => {
   const { type, invocationId, payload } = event.data || {};
   if (type === 'INVOKE_TOOL') {
@@ -828,7 +791,7 @@ window.addEventListener('message', (event) => {
     else if (toolName === 'redo_move')  handleRedoMove(invocationId);
     else {
       currentInvocationId = invocationId;
-      sendError(`Unknown tool: ${toolName}`);
+      sendError('Unknown tool: ' + toolName);
     }
   } else if (type === 'STATE_RESTORE') {
     handleRestoreState(payload?.state);
@@ -839,98 +802,9 @@ window.addEventListener('message', (event) => {
   }
 });
 
-// ─────────────────────────────────────────────
+// -----------------------------------------------
 // React Components
-// ─────────────────────────────────────────────
-
-function PromotionModal({ color, onSelect }) {
-  const pieces = [['q', '♛'], ['r', '♜'], ['b', '♝'], ['n', '♞']];
-
-  return h('div', { className: 'modal-overlay' },
-    h('div', { className: 'modal' },
-      h('h3', null, 'Choose Promotion Piece'),
-      h('div', { className: 'promotion-pieces' },
-        pieces.map(([type, glyph]) =>
-          h('button', { 
-            key: type, 
-            className: `promo-btn ${color === 'w' ? 'white-piece' : 'black-piece'}`, 
-            onClick: () => onSelect(type) 
-          }, glyph)
-        )
-      )
-    )
-  );
-}
-
-function Square({ sq, piece, isLight, isSelected, isLegalMove, isLastMove, isCheck, isCapture, playerColor, onClick }) {
-  const colorClass = isLight ? 'light' : 'dark';
-  let className = `square ${colorClass}`;
-  if (isSelected) className += ' selected';
-  else if (isLastMove) className += ' last-move';
-  if (isCheck) className += ' in-check';
-
-  const pieceClass = piece ? `piece ${piece[0] === 'w' ? 'white-piece' : 'black-piece'}` : '';
-
-  return h('div', { className, onClick, 'data-sq': sq },
-    piece && h('span', { className: pieceClass }, PIECE_UNICODE[piece] || ''),
-    isLegalMove && !isCapture && h('div', { className: 'legal-dot' }),
-    isLegalMove && isCapture && h('div', { className: 'legal-capture' }),
-  );
-}
-
-function ChessBoard({ chess, playerColor, selectedSq, legalMoveSqs, lastMove, onSquareClick }) {
-  // Determine board orientation: if player is black, flip
-  const flipped = playerColor === 'black';
-
-  const files = flipped ? [...FILES].reverse() : FILES;
-  const ranks = flipped ? [...RANKS].reverse() : RANKS;
-
-  // Build squares array in render order
-  const squares = [];
-  for (const rank of ranks) {
-    for (const file of files) {
-      const sq = file + rank;
-      const pieceObj = chess.get(sq);
-      const piece = pieceObj ? (pieceObj.color === 'w' ? 'w' : 'b') + pieceObj.type.toUpperCase() : null;
-      const fileIdx = FILES.indexOf(file);
-      const rankIdx = RANKS.indexOf(rank);
-      const isLight = (fileIdx + rankIdx) % 2 === 0;
-      const isLastMove = lastMove && (lastMove.from === sq || lastMove.to === sq);
-      const isCheck = chess.inCheck() && piece && piece[1] === 'K' && piece[0] === chess.turn();
-      const isCapture = !!chess.get(sq) && legalMoveSqs.includes(sq);
-
-      squares.push(h(Square, {
-        key: sq, sq, piece, isLight,
-        isSelected: selectedSq === sq,
-        isLegalMove: legalMoveSqs.includes(sq),
-        isLastMove: !!isLastMove,
-        isCheck: !!isCheck,
-        isCapture,
-        playerColor,
-        onClick: () => onSquareClick(sq),
-      }));
-    }
-  }
-
-  const rankCoords = ranks.map((r, i) =>
-    h('div', { key: r, className: 'coord-rank', style: { height: `${100/8}%` } }, r)
-  );
-  const fileCoords = files.map(f =>
-    h('div', { key: f, className: 'coord-file' }, f)
-  );
-
-  return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
-    h('div', { style: { display: 'flex', alignItems: 'stretch' } },
-      h('div', { className: 'coord-ranks', style: { width: '20px', height: '480px' } }, ...rankCoords),
-      h('div', { className: 'board-wrapper' },
-        h('div', { className: 'chess-board' }, ...squares)
-      )
-    ),
-    h('div', { style: { display: 'flex', marginLeft: '20px' } },
-      h('div', { className: 'coord-files' }, ...fileCoords)
-    )
-  );
-}
+// -----------------------------------------------
 
 function MoveHistory({ moveHistory }) {
   const listRef = useRef(null);
@@ -965,28 +839,28 @@ function StatusCard({ chess, playerColor, difficulty, gameActive }) {
   if (!chess || !gameActive) return null;
 
   let statusMain = '';
-  let statusSub = `Playing as ${playerColor} · ${difficulty}`;
+  let statusSub = 'Playing as ' + playerColor + ' \u00b7 ' + difficulty;
   let badgeClass = '';
   let badgeText = '';
 
   if (chess.isCheckmate()) {
     const winner = chess.turn() === 'w' ? 'Black' : 'White';
-    statusMain = `${winner} wins by checkmate!`;
+    statusMain = winner + ' wins by checkmate!';
     badgeClass = 'badge-checkmate'; badgeText = 'Checkmate';
   } else if (chess.isStalemate()) {
-    statusMain = 'Stalemate — Draw';
+    statusMain = 'Stalemate \u2014 Draw';
     badgeClass = 'badge-draw'; badgeText = 'Draw';
   } else if (chess.isDraw()) {
     statusMain = 'Draw';
     badgeClass = 'badge-draw'; badgeText = 'Draw';
   } else if (chess.inCheck()) {
     const inCheckColor = chess.turn() === 'w' ? 'White' : 'Black';
-    statusMain = `${inCheckColor} is in Check!`;
+    statusMain = inCheckColor + ' is in Check!';
     badgeClass = 'badge-check'; badgeText = 'Check';
   } else {
     const turnColor = chess.turn() === 'w' ? 'White' : 'Black';
     const isYourTurn = (chess.turn() === 'w') === (playerColor === 'white');
-    statusMain = isYourTurn ? 'Your turn' : `${turnColor} to move (AI)`;
+    statusMain = isYourTurn ? 'Your turn' : turnColor + ' to move (AI)';
     badgeClass = chess.turn() === 'w' ? 'badge-white' : 'badge-black';
     badgeText = turnColor;
   }
@@ -995,7 +869,7 @@ function StatusCard({ chess, playerColor, difficulty, gameActive }) {
     h('div', { className: 'status-title' }, 'Game Status'),
     h('div', { className: 'status-main' }, statusMain),
     h('div', { className: 'status-sub' }, statusSub),
-    badgeText && h('span', { className: `status-badge ${badgeClass}` }, badgeText)
+    badgeText && h('span', { className: 'status-badge ' + badgeClass }, badgeText)
   );
 }
 
@@ -1004,60 +878,72 @@ function WelcomeScreen({ onStart }) {
   const [color, setColor] = useState('white');
 
   const diffOptions = [['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']];
-  const colorOptions = [['white', '♔ White'], ['black', '♚ Black'], ['random', '🎲 Random']];
+  const colorOptions = [['white', '\u2654 White'], ['black', '\u265a Black'], ['random', '\ud83c\udfb2 Random']];
 
   return h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' } },
     h('div', { className: 'welcome' },
-      h('h1', null, '♛ Chess'),
+      h('h1', null, '\u265b Chess'),
       h('p', null, 'Play chess against an AI opponent'),
       h('div', { className: 'welcome-options' },
         h('div', { className: 'option-group' },
           h('div', { className: 'option-label' }, 'Difficulty'),
           h('div', { className: 'option-buttons' },
-            diffOptions.map(([val, label]) =>
-              h('button', {
-                key: val,
-                className: `option-btn ${difficulty === val ? 'selected' : ''}`,
-                onClick: () => setDifficulty(val),
-              }, label)
-            )
+            diffOptions.map(function(opt) {
+              return h('button', {
+                key: opt[0],
+                className: 'option-btn ' + (difficulty === opt[0] ? 'selected' : ''),
+                onClick: function() { setDifficulty(opt[0]); },
+              }, opt[1]);
+            })
           )
         ),
         h('div', { className: 'option-group' },
           h('div', { className: 'option-label' }, 'Play As'),
           h('div', { className: 'option-buttons' },
-            colorOptions.map(([val, label]) =>
-              h('button', {
-                key: val,
-                className: `option-btn ${color === val ? 'selected' : ''}`,
-                onClick: () => setColor(val),
-              }, label)
-            )
+            colorOptions.map(function(opt) {
+              return h('button', {
+                key: opt[0],
+                className: 'option-btn ' + (color === opt[0] ? 'selected' : ''),
+                onClick: function() { setColor(opt[0]); },
+              }, opt[1]);
+            })
           )
         ),
-        h('button', { className: 'start-btn', onClick: () => onStart(difficulty, color) }, 'Start Game')
+        h('button', { className: 'start-btn', onClick: function() { onStart(difficulty, color); } }, 'Start Game')
       )
     )
   );
 }
 
-// ─────────────────────────────────────────────
+// -----------------------------------------------
 // Main App
-// ─────────────────────────────────────────────
+// -----------------------------------------------
 function App() {
   const [state, setState] = useState({ ...appState });
-  const [selectedSq, setSelectedSq] = useState(null);
-  const [legalMoveSqs, setLegalMoveSqs] = useState([]);
   const [lastMove, setLastMove] = useState(null);
-  const [promotionPending, setPromotionPending] = useState(null); // { from, to }
-  const [hintSq, setHintSq] = useState(null);
+  const [hintSquares, setHintSquares] = useState(null);
+  const [aiThinking, setAiThinking] = useState(false);
+  const [boardWidth, setBoardWidth] = useState(480);
+  const boardWrapperRef = useRef(null);
 
-  // Register state setter for external calls
-  useEffect(() => {
-    setAppStateExternal = (newState) => {
+  // Register state setters for external calls
+  useEffect(function() {
+    setAppStateExternal = function(newState) {
       setState({ ...newState });
     };
-    return () => { setAppStateExternal = null; };
+    setAiThinkingExternal = setAiThinking;
+    return function() { setAppStateExternal = null; setAiThinkingExternal = null; };
+  }, []);
+
+  // Responsive board sizing
+  useEffect(function() {
+    function updateSize() {
+      const maxWidth = Math.min(window.innerWidth - 280, 480);
+      setBoardWidth(Math.max(280, maxWidth));
+    }
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return function() { window.removeEventListener('resize', updateSize); };
   }, []);
 
   const { chess, gameActive, playerColor, difficulty, moveHistory } = state;
@@ -1066,155 +952,195 @@ function App() {
     ((chess.turn() === 'w') === (playerColor === 'white')) &&
     !chess.isGameOver();
 
-  const handleSquareClick = useCallback((sq) => {
-    if (!chess || !gameActive || !isPlayerTurn) return;
+  // Compute custom square styles for highlighting
+  const customSquareStyles = useMemo(function() {
+    if (!chess) return {};
+    const styles = {};
 
-    if (selectedSq === sq) {
-      // Deselect
-      setSelectedSq(null);
-      setLegalMoveSqs([]);
-      return;
+    // Highlight last move
+    if (lastMove) {
+      styles[lastMove.from] = { background: 'rgba(205, 209, 110, 0.5)' };
+      styles[lastMove.to] = { background: 'rgba(205, 209, 110, 0.5)' };
     }
 
-    if (selectedSq) {
-      // Attempt move
-      const moveObj = { from: selectedSq, to: sq };
-      const piece = chess.get(selectedSq);
+    // Highlight hint squares
+    if (hintSquares) {
+      styles[hintSquares.from] = {
+        ...(styles[hintSquares.from] || {}),
+        background: 'rgba(127, 201, 201, 0.6)',
+        borderRadius: '50%',
+      };
+      styles[hintSquares.to] = {
+        ...(styles[hintSquares.to] || {}),
+        background: 'rgba(127, 201, 201, 0.6)',
+        borderRadius: '50%',
+      };
+    }
 
-      // Check for pawn promotion
-      if (piece && piece.type === 'p') {
-        const toRank = sq[1];
-        const isPromotion = (piece.color === 'w' && toRank === '8') || (piece.color === 'b' && toRank === '1');
-        if (isPromotion) {
-          // Verify it's a legal move first
-          const legal = chess.moves({ square: selectedSq, verbose: true }).some(m => m.to === sq);
-          if (legal) {
-            setPromotionPending({ from: selectedSq, to: sq });
-            return;
+    // Highlight king in check
+    if (chess.inCheck()) {
+      const board = chess.board();
+      const kingPiece = chess.turn();
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const sq = board[r][c];
+          if (sq && sq.type === 'k' && sq.color === kingPiece) {
+            const file = 'abcdefgh'[c];
+            const rank = String(8 - r);
+            const sqName = file + rank;
+            styles[sqName] = {
+              ...(styles[sqName] || {}),
+              background: 'radial-gradient(circle, rgba(233,69,96,0.8) 0%, rgba(233,69,96,0.4) 60%, transparent 80%)',
+            };
           }
         }
       }
+    }
 
-      let result;
-      try { result = chess.move({ ...moveObj, promotion: 'q' }); } catch (e) { /* invalid move */ }
-      if (result) {
-        const newHistory = [...appState.moveHistory, result.san];
-        appState.moveHistory = newHistory;
-        appState.redoStack = []; // clear redo on new move
-        setLastMove({ from: selectedSq, to: sq });
-        setSelectedSq(null);
-        setLegalMoveSqs([]);
-        setState({ ...appState });
-        sendStateUpdate(buildStatePayload());
+    return styles;
+  }, [chess, lastMove, hintSquares, state]);
 
-        // AI responds
-        if (!chess.isGameOver()) {
-          setTimeout(() => {
-            const aiMove = getAIMove(chess, appState.difficulty);
-            if (aiMove) {
-              let aiResult;
-              try { aiResult = chess.move(aiMove); } catch (e) { /* invalid AI move */ }
-              if (aiResult) {
-                appState.moveHistory = [...appState.moveHistory, aiResult.san];
-                setLastMove({ from: aiMove.from, to: aiMove.to });
-                setState({ ...appState });
-                sendStateUpdate(buildStatePayload());
-              }
-            }
-          }, 200);
-        }
-      } else {
-        // Maybe clicking another own piece
-        const clickedPiece = chess.get(sq);
-        if (clickedPiece && clickedPiece.color === chess.turn()) {
-          setSelectedSq(sq);
-          const legal = chess.moves({ square: sq, verbose: true });
-          setLegalMoveSqs(legal.map(m => m.to));
-        } else {
-          setSelectedSq(null);
-          setLegalMoveSqs([]);
+  // Trigger AI response after a player move
+  const triggerAiMove = useCallback(async function() {
+    if (!appState.chess || appState.chess.isGameOver()) return;
+
+    setAiThinking(true);
+    try {
+      // Small delay for UX
+      await new Promise(function(r) { setTimeout(r, 200); });
+
+      const aiMoveResult = await getAIMove(appState.chess, appState.difficulty);
+      if (aiMoveResult) {
+        let result;
+        try {
+          result = appState.chess.move(aiMoveResult);
+        } catch (e) { /* invalid AI move */ }
+        if (result) {
+          appState.moveHistory = [...appState.moveHistory, result.san];
+          setLastMove({ from: aiMoveResult.from, to: aiMoveResult.to });
+          if (setAppStateExternal) setAppStateExternal({ ...appState });
+          sendStateUpdate(buildStatePayload());
         }
       }
-    } else {
-      // Select piece
-      const piece = chess.get(sq);
-      if (piece && piece.color === chess.turn()) {
-        setSelectedSq(sq);
-        const legal = chess.moves({ square: sq, verbose: true });
-        setLegalMoveSqs(legal.map(m => m.to));
+    } finally {
+      setAiThinking(false);
+    }
+  }, []);
+
+  // Handle piece drop (player move via react-chessboard)
+  const onPieceDrop = useCallback(function(sourceSquare, targetSquare, piece) {
+    if (!chess || !gameActive || !isPlayerTurn) return false;
+
+    // Check for pawn promotion
+    const movingPiece = chess.get(sourceSquare);
+    if (movingPiece && movingPiece.type === 'p') {
+      const toRank = targetSquare[1];
+      const isPromo = (movingPiece.color === 'w' && toRank === '8') || (movingPiece.color === 'b' && toRank === '1');
+      if (isPromo) {
+        // react-chessboard handles promotion UI via onPromotionPieceSelect
+        // We return false here; the promotion dialog will handle the actual move
+        return false;
       }
     }
-  }, [chess, gameActive, isPlayerTurn, selectedSq]);
 
-  const handlePromotion = useCallback((pieceType) => {
-    if (!promotionPending || !chess) return;
-    const { from, to } = promotionPending;
     let result;
-    try { result = chess.move({ from, to, promotion: pieceType }); } catch (e) { /* invalid */ }
-    if (result) {
-      const newHistory = [...appState.moveHistory, result.san];
-      appState.moveHistory = newHistory;
-      appState.redoStack = [];
-      setLastMove({ from, to });
-      setState({ ...appState });
-      sendStateUpdate(buildStatePayload());
+    try {
+      result = chess.move({ from: sourceSquare, to: targetSquare, promotion: 'q' });
+    } catch (e) { /* invalid move */ }
 
-      if (!chess.isGameOver()) {
-        setTimeout(() => {
-          const aiMove = getAIMove(chess, appState.difficulty);
-          if (aiMove) {
-            let aiResult;
-            try { aiResult = chess.move(aiMove); } catch (e) { /* invalid */ }
-            if (aiResult) {
-              appState.moveHistory = [...appState.moveHistory, aiResult.san];
-              setLastMove({ from: aiMove.from, to: aiMove.to });
-              setState({ ...appState });
-              sendStateUpdate(buildStatePayload());
-            }
-          }
-        }, 200);
-      }
-    }
-    setPromotionPending(null);
-    setSelectedSq(null);
-    setLegalMoveSqs([]);
-  }, [promotionPending, chess]);
+    if (!result) return false;
 
-  const handleStartLocal = useCallback((diff, color) => {
-    handleStartGame(null, { difficulty: diff, color });
+    appState.moveHistory = [...appState.moveHistory, result.san];
+    appState.redoStack = [];
+    setLastMove({ from: sourceSquare, to: targetSquare });
+    if (setAppStateExternal) setAppStateExternal({ ...appState });
+    sendStateUpdate(buildStatePayload());
+
+    // AI responds
+    triggerAiMove();
+    return true;
+  }, [chess, gameActive, isPlayerTurn, triggerAiMove]);
+
+  // Handle promotion piece selection
+  const onPromotionPieceSelect = useCallback(function(piece, promoteFromSquare, promoteToSquare) {
+    if (!piece) return false;
+    // piece is like "wQ", "wR", etc. Extract the type letter (lowercase)
+    const promoType = piece[1].toLowerCase();
+
+    let result;
+    try {
+      result = chess.move({ from: promoteFromSquare, to: promoteToSquare, promotion: promoType });
+    } catch (e) { /* invalid */ }
+
+    if (!result) return false;
+
+    appState.moveHistory = [...appState.moveHistory, result.san];
+    appState.redoStack = [];
+    setLastMove({ from: promoteFromSquare, to: promoteToSquare });
+    if (setAppStateExternal) setAppStateExternal({ ...appState });
+    sendStateUpdate(buildStatePayload());
+
+    // AI responds
+    triggerAiMove();
+    return true;
+  }, [chess, triggerAiMove]);
+
+  // Check if a promotion move is possible
+  const onPromotionCheck = useCallback(function(sourceSquare, targetSquare, piece) {
+    if (!chess) return false;
+    const movingPiece = chess.get(sourceSquare);
+    if (!movingPiece || movingPiece.type !== 'p') return false;
+    const toRank = targetSquare[1];
+    const isPromo = (movingPiece.color === 'w' && toRank === '8') || (movingPiece.color === 'b' && toRank === '1');
+    if (!isPromo) return false;
+    // Verify it's a legal move
+    const legal = chess.moves({ square: sourceSquare, verbose: true }).some(function(m) { return m.to === targetSquare; });
+    return legal;
+  }, [chess]);
+
+  // Only allow dragging own pieces on player's turn
+  const isDraggablePiece = useCallback(function(args) {
+    if (!chess || !gameActive || !isPlayerTurn) return false;
+    // args.piece is like "wP", "bN" etc.
+    const pieceColor = args.piece[0];
+    const turnChar = chess.turn(); // 'w' or 'b'
+    return pieceColor === turnChar;
+  }, [chess, gameActive, isPlayerTurn]);
+
+  const handleStartLocal = useCallback(function(diff, color) {
+    handleStartGame(null, { difficulty: diff, color: color });
   }, []);
 
-  const handleUndo = useCallback(() => {
+  const handleUndo = useCallback(function() {
     handleUndoMove(null);
-    setSelectedSq(null);
-    setLegalMoveSqs([]);
     setLastMove(null);
+    setHintSquares(null);
   }, []);
 
-  const handleRedo = useCallback(() => {
+  const handleRedo = useCallback(function() {
     handleRedoMove(null);
-    setSelectedSq(null);
-    setLegalMoveSqs([]);
+    setHintSquares(null);
   }, []);
 
-  const handleHint = useCallback(() => {
+  const handleHint = useCallback(async function() {
     if (!chess || !gameActive) return;
-    const move = getAIMove(chess, difficulty);
-    if (move) {
-      setSelectedSq(move.from);
-      setLegalMoveSqs([move.to]);
-      setHintSq(move.from);
-      setTimeout(() => setHintSq(null), 2000);
+    setAiThinking(true);
+    try {
+      const move = await getAIMove(chess, difficulty);
+      if (move) {
+        setHintSquares({ from: move.from, to: move.to });
+        setTimeout(function() { setHintSquares(null); }, 2000);
+      }
+    } finally {
+      setAiThinking(false);
     }
   }, [chess, gameActive, difficulty]);
 
-  const handleNewGame = useCallback(() => {
+  const handleNewGame = useCallback(function() {
     appState = { chess: null, gameActive: false, difficulty: 'medium', playerColor: 'white', moveHistory: [], undoStack: [], redoStack: [] };
     setState({ ...appState });
-    setSelectedSq(null);
-    setLegalMoveSqs([]);
     setLastMove(null);
-    setPromotionPending(null);
+    setHintSquares(null);
   }, []);
 
   // Render welcome screen if no active game
@@ -1225,54 +1151,77 @@ function App() {
   }
 
   const isGameOver = chess.isGameOver();
+  const engineLabel = stockfishReady && !stockfishFailed
+    ? 'Stockfish engine active'
+    : 'Fallback AI (heuristic)';
+  const engineClass = stockfishReady && !stockfishFailed ? 'stockfish' : 'fallback';
 
   return h('div', null,
     h('div', { className: 'chess-app' },
       // Board
       h('div', { className: 'board-section' },
-        h(ChessBoard, {
-          chess, playerColor, selectedSq, legalMoveSqs, lastMove,
-          onSquareClick: handleSquareClick,
-        }),
+        h('div', { className: 'board-wrapper', ref: boardWrapperRef },
+          h(Chessboard, {
+            id: 'chess-board',
+            position: chess.fen(),
+            onPieceDrop: onPieceDrop,
+            onPromotionPieceSelect: onPromotionPieceSelect,
+            onPromotionCheck: onPromotionCheck,
+            boardOrientation: playerColor === 'black' ? 'black' : 'white',
+            boardWidth: boardWidth,
+            isDraggablePiece: isDraggablePiece,
+            customSquareStyles: customSquareStyles,
+            customBoardStyle: {
+              borderRadius: '4px',
+              boxShadow: 'none',
+            },
+            customDarkSquareStyle: { backgroundColor: '#b58863' },
+            customLightSquareStyle: { backgroundColor: '#f0d9b5' },
+            animationDuration: 200,
+          })
+        ),
+        h('div', { className: 'engine-indicator ' + engineClass }, engineLabel),
+        aiThinking && h('div', { className: 'ai-thinking' }, 'AI is thinking...'),
         // Controls below board
-        h('div', { className: 'controls', style: { width: '500px' } },
+        h('div', { className: 'controls', style: { width: boardWidth + 20 + 'px' } },
           h('div', { className: 'controls-row' },
             h('button', {
               className: 'btn btn-secondary',
               onClick: handleUndo,
-              disabled: !gameActive || moveHistory.length < 2,
-            }, '↩ Undo'),
+              disabled: !gameActive || moveHistory.length < 2 || aiThinking,
+            }, '\u21a9 Undo'),
             h('button', {
               className: 'btn btn-secondary',
               onClick: handleRedo,
-              disabled: !gameActive || appState.redoStack.length === 0,
-            }, '↪ Redo'),
+              disabled: !gameActive || appState.redoStack.length === 0 || aiThinking,
+            }, '\u21aa Redo'),
             h('button', {
               className: 'btn btn-secondary',
               onClick: handleHint,
-              disabled: !isPlayerTurn || isGameOver,
-            }, '💡 Hint'),
-            h('button', { className: 'btn btn-primary', onClick: handleNewGame }, '⊕ New Game'),
+              disabled: !isPlayerTurn || isGameOver || aiThinking,
+            }, '\ud83d\udca1 Hint'),
+            h('button', { className: 'btn btn-primary', onClick: handleNewGame }, '\u2295 New Game'),
           )
         )
       ),
       // Sidebar
       h('div', { className: 'sidebar' },
-        h(StatusCard, { chess, playerColor, difficulty, gameActive }),
-        h(MoveHistory, { moveHistory }),
+        h(StatusCard, { chess: chess, playerColor: playerColor, difficulty: difficulty, gameActive: gameActive }),
+        h(MoveHistory, { moveHistory: moveHistory }),
       )
     ),
-    // Promotion modal
-    promotionPending && h(PromotionModal, {
-      color: chess.turn(),
-      onSelect: handlePromotion,
-    }),
   );
 }
 
-// ─────────────────────────────────────────────
+// -----------------------------------------------
 // Bootstrap
-// ─────────────────────────────────────────────
+// -----------------------------------------------
+// Initialize Stockfish in background, don't block rendering
+initStockfish().catch(function(err) {
+  console.warn('Stockfish initialization failed:', err);
+  stockfishFailed = true;
+});
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(h(App, null));
 
