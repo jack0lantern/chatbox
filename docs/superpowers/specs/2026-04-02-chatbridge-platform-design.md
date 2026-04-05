@@ -195,6 +195,7 @@ Iframe loads a standalone React app using chess.js (game logic), react-chessboar
 | Tool | Params | Description |
 |------|--------|-------------|
 | `start_game` | `{ difficulty: "easy"\|"medium"\|"hard", color: "white"\|"black"\|"random" }` | Start a new chess game. `random` picks a side server-side. |
+| `get_game_state` | `{}` | Read-only snapshot of the board (FEN, move history, turn, check/terminal flags) for coaching and analysis. |
 | `get_hint` | `{ difficulty: "easy"\|"medium"\|"hard" }` | Suggest the best next move |
 | `end_game` | `{}` | End the current game and show results |
 | `undo_move` | `{}` | Undo the last move |
