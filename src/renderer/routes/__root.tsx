@@ -48,6 +48,7 @@ import SettingsModal, { navigateToSettings } from '@/modals/Settings'
 import { prefetchModelRegistry } from '@/packages/model-registry'
 import { getOS } from '@/packages/navigator'
 import * as remote from '@/packages/remote'
+import PluginContainer from '@/components/plugin/PluginContainer'
 import PictureDialog from '@/pages/PictureDialog'
 import RemoteDialogWindow from '@/pages/RemoteDialogWindow'
 import SearchDialog from '@/pages/SearchDialog'
@@ -255,7 +256,7 @@ function Root() {
     <Box className="box-border App relative" spellCheck={spellCheck} dir={language === 'ar' ? 'rtl' : 'ltr'}>
       <BackgroundImageOverlay />
       {platform.type === 'desktop' && (getOS() === 'Windows' || getOS() === 'Linux') && <ExitFullscreenButton />}
-      <Grid container className="h-full relative z-[1]">
+      <Grid container className="h-full relative">
         <Sidebar />
         <Box
           className="h-full w-full"
@@ -273,6 +274,9 @@ function Root() {
           </ErrorBoundary>
         </Box>
       </Grid>
+      <ErrorBoundary name="root-plugin">
+        <PluginContainer />
+      </ErrorBoundary>
       {/* 对话设置 */}
       {/* <AppStoreRatingDialog /> */}
       {/* 代码预览 */}

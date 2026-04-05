@@ -14,6 +14,7 @@ import {
   IconFileMinus,
   IconFileSearch,
   IconLoader,
+  IconPuzzle,
   IconTerminal,
   IconWorld,
   IconX,
@@ -43,9 +44,13 @@ const toolIconMap: Record<string, React.ElementType> = {
   get_files_meta: IconFileSearch,
   read_file_chunks: IconFile,
   read_file: IconFile,
+  plugin: IconPuzzle,
 }
 
-const getToolIcon = (toolName: string) => toolIconMap[toolName] || IconCode
+const getToolIcon = (toolName: string) => {
+  if (toolName.startsWith('plugin__')) return toolIconMap['plugin'] || IconCode
+  return toolIconMap[toolName] || IconCode
+}
 
 // ─── Pill Header (shared) ───────────────────────────────────────────
 

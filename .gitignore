@@ -188,3 +188,15 @@ storybook-static
 .gstack/
 .worktrees/
 .claude/worktrees/
+
+# Test artifacts (Playwright, etc.)
+/test-results/
+/server/test-results/
+/server/supabase/test-results/
+
+# BMad (local modules, generated output, IDE-installed skills)
+_bmad/
+_bmad-output/
+.claude/skills/bmad-*/
+.cursor/skills/bmad-*/
+.claude/hooks/bmad-*

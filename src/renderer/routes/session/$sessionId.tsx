@@ -2,14 +2,17 @@ import NiceModal from '@ebay/nice-modal-react'
 import { Button } from '@mantine/core'
 import type { Message, ModelProvider } from '@shared/types'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useAtomValue } from 'jotai'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useStore } from 'zustand'
+import FloatingChatBubble from '@/components/chat/FloatingChatBubble'
 import MessageList, { type MessageListRef } from '@/components/chat/MessageList'
 import { ErrorBoundary } from '@/components/common/ErrorBoundary'
 import InputBox from '@/components/InputBox/InputBox'
 import Header from '@/components/layout/Header'
 import ThreadHistoryDrawer from '@/components/session/ThreadHistoryDrawer'
+import { pluginActiveAtom } from '@/stores/atoms/uiAtoms'
 import * as remote from '@/packages/remote'
 import { updateSession as updateSessionStore, useSession } from '@/stores/chatStore'
 import { lastUsedModelStore } from '@/stores/lastUsedModelStore'
@@ -35,6 +38,7 @@ function RouteComponent() {
     [currentMessageList]
   )
 
+  const pluginActive = useAtomValue(pluginActiveAtom)
   const messageListRef = useRef<MessageListRef>(null)
 
   const goHome = useCallback(() => {
@@ -165,19 +169,14 @@ function RouteComponent() {
     }
   }, [currentSession?.settings?.provider, currentSession?.settings?.modelId])
 
-  return currentSession ? (
-    <div className="flex flex-col h-full">
-      <Header session={currentSession} />
-
-      {/* MessageList 设置 key，确保每个 session 对应新的 MessageList 实例 */}
-      <MessageList ref={messageListRef} key={`message-list${currentSessionId}`} currentSession={currentSession} />
-
-      {/* <ScrollButtons /> */}
+  const chatContent = (
+    <>
+      <MessageList ref={messageListRef} key={`message-list${currentSessionId}`} currentSession={currentSession!} />
       <ErrorBoundary name="session-inputbox">
         <InputBox
-          key={`input-box${currentSession.id}`}
-          sessionId={currentSession.id}
-          sessionType={currentSession.type}
+          key={`input-box${currentSession?.id}`}
+          sessionId={currentSession?.id ?? ''}
+          sessionType={currentSession?.type ?? 'chat'}
           model={model}
           onStartNewThread={onStartNewThread}
           onRollbackThread={onRollbackThread}
@@ -188,6 +187,21 @@ function RouteComponent() {
           onStopGenerating={onStopGenerating}
         />
       </ErrorBoundary>
+    </>
+  )
+
+  return currentSession ? (
+    <div className="flex flex-col h-full">
+      {!pluginActive && <Header session={currentSession} />}
+
+      {pluginActive ? (
+        <FloatingChatBubble>{chatContent}</FloatingChatBubble>
+      ) : (
+        <>
+          {chatContent}
+        </>
+      )}
+
       <ThreadHistoryDrawer session={currentSession} />
     </div>
   ) : (

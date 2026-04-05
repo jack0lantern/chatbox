@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chess</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18",
+      "react-dom": "https://esm.sh/react-dom@18",
+      "react-dom/client": "https://esm.sh/react-dom@18/client",
+      "react/jsx-runtime": "https://esm.sh/react@18/jsx-runtime",
+      "chess.js": "https://esm.sh/chess.js@1",
+      "react-chessboard": "https://esm.sh/react-chessboard@4?external=react,react-dom"
+    }
+  }
+  </script>
+  <style>
+    :root {
+      --bg: #1a1b2e;
+      --surface: #16213e;
+      --surface2: #0f3460;
+      --accent: #e94560;
+      --accent2: #533483;
+      --text: #eaeaea;
+      --text-dim: #8892a4;
+      --light-sq: #f0d9b5;
+      --dark-sq: #b58863;
+      --selected: #7fc97f;
+      --hint: #7fc9c9;
+      --last-move: #cdd16e;
+      --check: #e94560;
+      --border-radius: 8px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 16px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    #root {
+      width: 100%;
+      max-width: 900px;
+      margin: auto 0;
+    }
+
+    /* Loading state */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 400px;
+      font-size: 18px;
+      color: var(--text-dim);
+    }
+
+    /* App layout */
+    .chess-app {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    /* Board section */
+    .board-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .board-wrapper {
+      position: relative;
+      border-radius: var(--border-radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      border: 2px solid var(--surface2);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      flex: 1;
+      min-width: 200px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Status card */
+    .status-card {
+      background: var(--surface);
+      border-radius: var(--border-radius);
+      padding: 16px;
+      border: 1px solid var(--surface2);
+      box-shadow: var(--shadow);
+    }
+
+    .status-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .status-main {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .status-sub {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 6px;
+    }
+
+    .badge-check { background: var(--check); color: white; }
+    .badge-checkmate { background: var(--accent2); color: white; }
+    .badge-draw { background: var(--surface2); color: var(--text); }
+    .badge-white { background: #f0d9b5; color: #333; }
+    .badge-black { background: #333; color: #f0d9b5; }
+
+    /* Move history */
+    .move-history {
+      background: var(--surface);
+      border-radius: var(--border-radius);
+      padding: 16px;
+      border: 1px solid var(--surface2);
+      box-shadow: var(--shadow);
+      flex: 1;
+      max-height: 320px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .history-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+
+    .history-list {
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .history-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .history-list::-webkit-scrollbar-track {
+      background: var(--bg);
+      border-radius: 2px;
+    }
+
+    .history-list::-webkit-scrollbar-thumb {
+      background: var(--surface2);
+      border-radius: 2px;
+    }
+
+    .history-row {
+      display: grid;
+      grid-template-columns: 28px 1fr 1fr;
+      gap: 6px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .history-row:nth-child(odd) {
+      background: rgba(255,255,255,0.03);
+    }
+
+    .history-num {
+      color: var(--text-dim);
+      font-size: 11px;
+      text-align: right;
+    }
+
+    .history-move {
+      font-family: 'Courier New', monospace;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .history-move.white-move { color: #ffffff; }
+    .history-move.black-move { color: #aaaaaa; }
+
+    /* Controls */
+    .controls {
+      background: var(--surface);
+      border-radius: var(--border-radius);
+      padding: 16px;
+      border: 1px solid var(--surface2);
+      box-shadow: var(--shadow);
+    }
+
+    .controls-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 7px 14px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.15s ease;
+      letter-spacing: 0.3px;
+    }
+
+    .btn:active { transform: scale(0.96); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+    .btn-primary:hover:not(:disabled) { background: #c73650; }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+    }
+    .btn-secondary:hover:not(:disabled) { background: #1a4a80; }
+
+    /* Welcome screen */
+    .welcome {
+      background: var(--surface);
+      border-radius: var(--border-radius);
+      padding: 32px;
+      text-align: center;
+      border: 1px solid var(--surface2);
+      box-shadow: var(--shadow);
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    .welcome h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .welcome p {
+      color: var(--text-dim);
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+
+    .welcome-options {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .option-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      text-align: left;
+    }
+
+    .option-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      font-weight: 600;
+    }
+
+    .option-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .option-btn {
+      flex: 1;
+      padding: 10px;
+      border-radius: 6px;
+      border: 2px solid var(--surface2);
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+
+    .option-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .option-btn.selected { border-color: var(--accent); background: var(--accent); color: white; }
+
+    .start-btn {
+      margin-top: 8px;
+      padding: 14px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      letter-spacing: 0.5px;
+    }
+
+    .start-btn:hover { background: #c73650; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(233,69,96,0.4); }
+    .start-btn:active { transform: translateY(0); }
+
+    /* Engine indicator */
+    .engine-indicator {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-align: center;
+      margin-top: 4px;
+      opacity: 0.7;
+    }
+
+    .engine-indicator.stockfish { color: #7fc97f; }
+    .engine-indicator.fallback { color: var(--accent); }
+
+    /* AI thinking indicator */
+    .ai-thinking {
+      font-size: 12px;
+      color: var(--accent);
+      text-align: center;
+      margin-top: 4px;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    /* Responsive */
+    @media (max-width: 700px) {
+      .chess-app {
+        flex-direction: column;
+        align-items: center;
+      }
+      .sidebar { width: 100%; min-width: unset; }
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="module">
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { Chess } from 'chess.js';
+import { Chessboard } from 'react-chessboard';
+
+const { createElement: h, useState, useEffect, useCallback, useRef, useMemo } = React;
+
+// -----------------------------------------------
+// Stockfish Engine
+// -----------------------------------------------
+const STOCKFISH_CDN = 'https://unpkg.com/stockfish.js@10.0.2/stockfish.js';
+const DEPTH_MAP = { easy: 1, medium: 5, hard: 10 };
+
+let stockfishWorker = null;
+let stockfishReady = false;
+let stockfishFailed = false;
+let onStockfishMessage = null;
+
+async function initStockfish() {
+  try {
+    const response = await fetch(STOCKFISH_CDN);
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const source = await response.text();
+    const blob = new Blob([source], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    stockfishWorker = new Worker(url);
+    URL.revokeObjectURL(url);
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Stockfish init timeout'));
+      }, 10000);
+
+      let gotUciOk = false;
+
+      stockfishWorker.onmessage = (e) => {
+        const line = typeof e.data === 'string' ? e.data : '';
+        if (!gotUciOk && line.includes('uciok')) {
+          gotUciOk = true;
+          stockfishWorker.postMessage('isready');
+        }
+        if (gotUciOk && line.includes('readyok')) {
+          clearTimeout(timeout);
+          stockfishReady = true;
+          // Switch to dynamic handler
+          stockfishWorker.onmessage = (ev) => {
+            if (onStockfishMessage) onStockfishMessage(typeof ev.data === 'string' ? ev.data : '');
+          };
+          resolve();
+        }
+      };
+
+      stockfishWorker.onerror = (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      };
+
+      stockfishWorker.postMessage('uci');
+    });
+  } catch (err) {
+    console.warn('Stockfish failed to load, using fallback AI:', err);
+    stockfishFailed = true;
+    stockfishReady = false;
+  }
+}
+
+function getStockfishMove(fen, difficulty) {
+  return new Promise((resolve, reject) => {
+    if (!stockfishWorker || !stockfishReady) {
+      reject(new Error('Stockfish not available'));
+      return;
+    }
+
+    const depth = DEPTH_MAP[difficulty] || 5;
+    const timeout = setTimeout(() => {
+      onStockfishMessage = null;
+      reject(new Error('Stockfish move timeout'));
+    }, 15000);
+
+    onStockfishMessage = (line) => {
+      if (line.startsWith('bestmove')) {
+        clearTimeout(timeout);
+        onStockfishMessage = null;
+        const parts = line.split(' ');
+        const moveStr = parts[1]; // e.g. "e2e4" or "e7e8q"
+        if (!moveStr || moveStr === '(none)') {
+          reject(new Error('No best move'));
+          return;
+        }
+        resolve({
+          from: moveStr.substring(0, 2),
+          to: moveStr.substring(2, 4),
+          promotion: moveStr.length > 4 ? moveStr[4] : undefined,
+        });
+      }
+    };
+
+    stockfishWorker.postMessage('position fen ' + fen);
+    stockfishWorker.postMessage('go depth ' + depth);
+  });
+}
+
+// -----------------------------------------------
+// Heuristic fallback AI (original logic)
+// -----------------------------------------------
+function getHeuristicMove(chess, difficulty) {
+  const moves = chess.moves({ verbose: true });
+  if (moves.length === 0) return null;
+
+  if (difficulty === 'easy') {
+    return moves[Math.floor(Math.random() * moves.length)];
+  }
+
+  if (difficulty === 'medium') {
+    const captures = moves.filter(m => m.captured);
+    if (captures.length > 0) return captures[Math.floor(Math.random() * captures.length)];
+    return moves[Math.floor(Math.random() * moves.length)];
+  }
+
+  // hard: prefer captures > checks > random
+  const captures = moves.filter(m => m.captured);
+  if (captures.length > 0) {
+    const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 100 };
+    captures.sort((a, b) => (pieceValues[b.captured] || 0) - (pieceValues[a.captured] || 0));
+    return captures[0];
+  }
+
+  const checkMoves = moves.filter(m => {
+    try { chess.move(m); } catch { return false; }
+    const inCheck = chess.inCheck();
+    chess.undo();
+    return inCheck;
+  });
+  if (checkMoves.length > 0) return checkMoves[Math.floor(Math.random() * checkMoves.length)];
+
+  return moves[Math.floor(Math.random() * moves.length)];
+}
+
+// Unified AI move: tries Stockfish, falls back to heuristic
+async function getAIMove(chess, difficulty) {
+  if (stockfishReady && !stockfishFailed) {
+    try {
+      const sfMove = await getStockfishMove(chess.fen(), difficulty);
+      return sfMove;
+    } catch (err) {
+      console.warn('Stockfish move failed, using fallback:', err);
+    }
+  }
+  // Fallback
+  const move = getHeuristicMove(chess, difficulty);
+  if (!move) return null;
+  return { from: move.from, to: move.to, promotion: move.promotion };
+}
+
+// -----------------------------------------------
+// postMessage helpers
+// -----------------------------------------------
+let currentInvocationId = null;
+
+function sendMessage(type, payload) {
+  window.parent.postMessage({ type, invocationId: currentInvocationId, payload }, '*');
+}
+
+function sendStateUpdate(state) {
+  window.parent.postMessage({
+    type: 'STATE_UPDATE',
+    invocationId: currentInvocationId,
+    payload: { state },
+  }, '*');
+}
+
+function sendTaskComplete(result) {
+  window.parent.postMessage({
+    type: 'TASK_COMPLETE',
+    invocationId: currentInvocationId,
+    payload: { result },
+  }, '*');
+}
+
+function sendError(message) {
+  window.parent.postMessage({
+    type: 'ERROR',
+    invocationId: currentInvocationId,
+    payload: { code: 'INTERNAL_ERROR', message, recoverable: false },
+  }, '*');
+}
+
+// -----------------------------------------------
+// App state (module-level, shared with message handlers)
+// -----------------------------------------------
+let appState = {
+  chess: null,
+  gameActive: false,
+  difficulty: 'medium',
+  playerColor: 'white',
+  moveHistory: [],
+  undoStack: [],
+  redoStack: [],
+};
+
+let setAppStateExternal = null; // will be set by React
+let setAiThinkingExternal = null;
+
+function buildStatePayload() {
+  const { chess, difficulty, playerColor, moveHistory, undoStack, redoStack } = appState;
+  return {
+    fen: chess ? chess.fen() : null,
+    moveHistory: [...moveHistory],
+    difficulty,
+    playerColor,
+    undoStack: [...undoStack],
+    redoStack: [...redoStack],
+  };
+}
+
+// -----------------------------------------------
+// Tool handlers
+// -----------------------------------------------
+async function handleStartGame(invId, params) {
+  currentInvocationId = invId;
+  const { difficulty = 'medium', color = 'white' } = params || {};
+
+  let playerColor = color;
+  if (color === 'random') {
+    playerColor = Math.random() < 0.5 ? 'white' : 'black';
+  }
+
+  const chess = new Chess();
+  appState = {
+    chess,
+    gameActive: true,
+    difficulty,
+    playerColor,
+    moveHistory: [],
+    undoStack: [],
+    redoStack: [],
+  };
+
+  // If player is black, AI moves first
+  if (playerColor === 'black') {
+    if (setAiThinkingExternal) setAiThinkingExternal(true);
+    try {
+      const aiMove = await getAIMove(chess, difficulty);
+      if (aiMove) {
+        let result;
+        try { result = chess.move(aiMove); } catch (e) { /* invalid AI move */ }
+        if (result) appState.moveHistory.push(result.san);
+      }
+    } finally {
+      if (setAiThinkingExternal) setAiThinkingExternal(false);
+    }
+  }
+
+  if (setAppStateExternal) setAppStateExternal({ ...appState });
+
+  sendTaskComplete({ started: true, playerColor, difficulty });
+  sendStateUpdate(buildStatePayload());
+}
+
+async function handleGetHint(invId, params) {
+  currentInvocationId = invId;
+  const { chess, difficulty } = appState;
+  if (!chess || !appState.gameActive) {
+    sendError('No active game');
+    return;
+  }
+  try {
+    const move = await getAIMove(chess, params?.difficulty || difficulty);
+    if (!move) {
+      sendError('No moves available');
+      return;
+    }
+    sendTaskComplete({ hint: move.from + move.to, from: move.from, to: move.to });
+  } catch (err) {
+    sendError('Failed to compute hint: ' + err.message);
+  }
+}
+
+function handleEndGame(invId) {
+  currentInvocationId = invId;
+  const { chess, moveHistory } = appState;
+  let winner = null;
+  let reason = 'resigned';
+
+  if (chess) {
+    if (chess.isCheckmate()) {
+      winner = chess.turn() === 'w' ? 'black' : 'white';
+      reason = 'checkmate';
+    } else if (chess.isDraw()) {
+      reason = 'draw';
+    } else if (chess.isStalemate()) {
+      reason = 'stalemate';
+    }
+  }
+
+  appState.gameActive = false;
+  if (setAppStateExternal) setAppStateExternal({ ...appState });
+
+  sendTaskComplete({ winner, moveCount: moveHistory.length, reason });
+  sendStateUpdate(buildStatePayload());
+}
+
+function handleUndoMove(invId) {
+  currentInvocationId = invId;
+  const { chess, moveHistory } = appState;
+  if (!chess || !appState.gameActive) {
+    sendError('No active game');
+    return;
+  }
+
+  // Undo two moves (player + AI)
+  const undone = [];
+  for (let i = 0; i < 2; i++) {
+    const move = chess.undo();
+    if (move) {
+      undone.unshift(move);
+      appState.moveHistory.pop();
+    }
+  }
+
+  if (undone.length > 0) {
+    appState.redoStack.push(...undone);
+  }
+
+  if (setAppStateExternal) setAppStateExternal({ ...appState });
+  sendTaskComplete({ undone: undone.length > 0, fen: chess.fen() });
+  sendStateUpdate(buildStatePayload());
+}
+
+function handleRedoMove(invId) {
+  currentInvocationId = invId;
+  const { chess, redoStack } = appState;
+  if (!chess || !appState.gameActive) {
+    sendError('No active game');
+    return;
+  }
+  if (redoStack.length === 0) {
+    sendError('Nothing to redo');
+    return;
+  }
+
+  // Redo up to 2 moves from stack
+  let redone = false;
+  for (let i = 0; i < 2 && appState.redoStack.length > 0; i++) {
+    const moveObj = appState.redoStack.pop();
+    let result;
+    try {
+      result = chess.move({ from: moveObj.from, to: moveObj.to, promotion: moveObj.promotion || 'q' });
+    } catch (e) {
+      // Invalid move after state change -- skip
+      break;
+    }
+    if (result) {
+      appState.moveHistory.push(result.san);
+      redone = true;
+    }
+  }
+
+  if (setAppStateExternal) setAppStateExternal({ ...appState });
+  sendTaskComplete({ redone, fen: chess.fen() });
+  sendStateUpdate(buildStatePayload());
+}
+
+function handleRestoreState(savedState) {
+  if (!savedState || !savedState.fen) return;
+  try {
+    const chess = new Chess(savedState.fen);
+    appState = {
+      chess,
+      gameActive: true,
+      difficulty: savedState.difficulty || 'medium',
+      playerColor: savedState.playerColor || 'white',
+      moveHistory: savedState.moveHistory || [],
+      undoStack: savedState.undoStack || [],
+      redoStack: savedState.redoStack || [],
+    };
+    if (setAppStateExternal) setAppStateExternal({ ...appState });
+  } catch (e) {
+    console.error('Failed to restore state:', e);
+  }
+}
+
+// -----------------------------------------------
+// Message listener
+// -----------------------------------------------
+window.addEventListener('message', (event) => {
+  const { type, invocationId, payload } = event.data || {};
+  if (type === 'INVOKE_TOOL') {
+    const { toolName, parameters } = payload || {};
+    if (toolName === 'start_game')  handleStartGame(invocationId, parameters);
+    else if (toolName === 'get_hint')   handleGetHint(invocationId, parameters);
+    else if (toolName === 'end_game')   handleEndGame(invocationId);
+    else if (toolName === 'undo_move')  handleUndoMove(invocationId);
+    else if (toolName === 'redo_move')  handleRedoMove(invocationId);
+    else {
+      currentInvocationId = invocationId;
+      sendError('Unknown tool: ' + toolName);
+    }
+  } else if (type === 'STATE_RESTORE') {
+    handleRestoreState(payload?.state);
+  } else if (type === 'DESTROY') {
+    // cleanup
+    appState = { chess: null, gameActive: false, difficulty: 'medium', playerColor: 'white', moveHistory: [], undoStack: [], redoStack: [] };
+    if (setAppStateExternal) setAppStateExternal({ ...appState });
+  }
+});
+
+// -----------------------------------------------
+// React Components
+// -----------------------------------------------
+
+function MoveHistory({ moveHistory }) {
+  const listRef = useRef(null);
+  useEffect(() => {
+    if (listRef.current) {
+      listRef.current.scrollTop = listRef.current.scrollHeight;
+    }
+  }, [moveHistory]);
+
+  const pairs = [];
+  for (let i = 0; i < moveHistory.length; i += 2) {
+    pairs.push({ num: Math.floor(i / 2) + 1, white: moveHistory[i], black: moveHistory[i + 1] });
+  }
+
+  return h('div', { className: 'move-history' },
+    h('div', { className: 'history-title' }, 'Move History'),
+    h('div', { className: 'history-list', ref: listRef },
+      pairs.length === 0
+        ? h('div', { style: { color: 'var(--text-dim)', fontSize: '13px', fontStyle: 'italic' } }, 'No moves yet')
+        : pairs.map(p =>
+            h('div', { key: p.num, className: 'history-row' },
+              h('span', { className: 'history-num' }, p.num + '.'),
+              h('span', { className: 'history-move white-move' }, p.white || ''),
+              h('span', { className: 'history-move black-move' }, p.black || ''),
+            )
+          )
+    )
+  );
+}
+
+function StatusCard({ chess, playerColor, difficulty, gameActive }) {
+  if (!chess || !gameActive) return null;
+
+  let statusMain = '';
+  let statusSub = 'Playing as ' + playerColor + ' \u00b7 ' + difficulty;
+  let badgeClass = '';
+  let badgeText = '';
+
+  if (chess.isCheckmate()) {
+    const winner = chess.turn() === 'w' ? 'Black' : 'White';
+    statusMain = winner + ' wins by checkmate!';
+    badgeClass = 'badge-checkmate'; badgeText = 'Checkmate';
+  } else if (chess.isStalemate()) {
+    statusMain = 'Stalemate \u2014 Draw';
+    badgeClass = 'badge-draw'; badgeText = 'Draw';
+  } else if (chess.isDraw()) {
+    statusMain = 'Draw';
+    badgeClass = 'badge-draw'; badgeText = 'Draw';
+  } else if (chess.inCheck()) {
+    const inCheckColor = chess.turn() === 'w' ? 'White' : 'Black';
+    statusMain = inCheckColor + ' is in Check!';
+    badgeClass = 'badge-check'; badgeText = 'Check';
+  } else {
+    const turnColor = chess.turn() === 'w' ? 'White' : 'Black';
+    const isYourTurn = (chess.turn() === 'w') === (playerColor === 'white');
+    statusMain = isYourTurn ? 'Your turn' : turnColor + ' to move (AI)';
+    badgeClass = chess.turn() === 'w' ? 'badge-white' : 'badge-black';
+    badgeText = turnColor;
+  }
+
+  return h('div', { className: 'status-card' },
+    h('div', { className: 'status-title' }, 'Game Status'),
+    h('div', { className: 'status-main' }, statusMain),
+    h('div', { className: 'status-sub' }, statusSub),
+    badgeText && h('span', { className: 'status-badge ' + badgeClass }, badgeText)
+  );
+}
+
+function WelcomeScreen({ onStart }) {
+  const [difficulty, setDifficulty] = useState('medium');
+  const [color, setColor] = useState('white');
+
+  const diffOptions = [['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']];
+  const colorOptions = [['white', '\u2654 White'], ['black', '\u265a Black'], ['random', '\ud83c\udfb2 Random']];
+
+  return h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' } },
+    h('div', { className: 'welcome' },
+      h('h1', null, '\u265b Chess'),
+      h('p', null, 'Play chess against an AI opponent'),
+      h('div', { className: 'welcome-options' },
+        h('div', { className: 'option-group' },
+          h('div', { className: 'option-label' }, 'Difficulty'),
+          h('div', { className: 'option-buttons' },
+            diffOptions.map(function(opt) {
+              return h('button', {
+                key: opt[0],
+                className: 'option-btn ' + (difficulty === opt[0] ? 'selected' : ''),
+                onClick: function() { setDifficulty(opt[0]); },
+              }, opt[1]);
+            })
+          )
+        ),
+        h('div', { className: 'option-group' },
+          h('div', { className: 'option-label' }, 'Play As'),
+          h('div', { className: 'option-buttons' },
+            colorOptions.map(function(opt) {
+              return h('button', {
+                key: opt[0],
+                className: 'option-btn ' + (color === opt[0] ? 'selected' : ''),
+                onClick: function() { setColor(opt[0]); },
+              }, opt[1]);
+            })
+          )
+        ),
+        h('button', { className: 'start-btn', onClick: function() { onStart(difficulty, color); } }, 'Start Game')
+      )
+    )
+  );
+}
+
+// -----------------------------------------------
+// Main App
+// -----------------------------------------------
+function App() {
+  const [state, setState] = useState({ ...appState });
+  const [lastMove, setLastMove] = useState(null);
+  const [hintSquares, setHintSquares] = useState(null);
+  const [aiThinking, setAiThinking] = useState(false);
+  const [boardWidth, setBoardWidth] = useState(480);
+  const boardWrapperRef = useRef(null);
+
+  // Register state setters for external calls
+  useEffect(function() {
+    setAppStateExternal = function(newState) {
+      setState({ ...newState });
+    };
+    setAiThinkingExternal = setAiThinking;
+    return function() { setAppStateExternal = null; setAiThinkingExternal = null; };
+  }, []);
+
+  // Responsive board sizing
+  useEffect(function() {
+    function updateSize() {
+      const maxWidth = Math.min(window.innerWidth - 280, 480);
+      setBoardWidth(Math.max(280, maxWidth));
+    }
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return function() { window.removeEventListener('resize', updateSize); };
+  }, []);
+
+  const { chess, gameActive, playerColor, difficulty, moveHistory } = state;
+
+  const isPlayerTurn = chess && gameActive &&
+    ((chess.turn() === 'w') === (playerColor === 'white')) &&
+    !chess.isGameOver();
+
+  // Compute custom square styles for highlighting
+  const customSquareStyles = useMemo(function() {
+    if (!chess) return {};
+    const styles = {};
+
+    // Highlight last move
+    if (lastMove) {
+      styles[lastMove.from] = { background: 'rgba(205, 209, 110, 0.5)' };
+      styles[lastMove.to] = { background: 'rgba(205, 209, 110, 0.5)' };
+    }
+
+    // Highlight hint squares
+    if (hintSquares) {
+      styles[hintSquares.from] = {
+        ...(styles[hintSquares.from] || {}),
+        background: 'rgba(127, 201, 201, 0.6)',
+        borderRadius: '50%',
+      };
+      styles[hintSquares.to] = {
+        ...(styles[hintSquares.to] || {}),
+        background: 'rgba(127, 201, 201, 0.6)',
+        borderRadius: '50%',
+      };
+    }
+
+    // Highlight king in check
+    if (chess.inCheck()) {
+      const board = chess.board();
+      const kingPiece = chess.turn();
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const sq = board[r][c];
+          if (sq && sq.type === 'k' && sq.color === kingPiece) {
+            const file = 'abcdefgh'[c];
+            const rank = String(8 - r);
+            const sqName = file + rank;
+            styles[sqName] = {
+              ...(styles[sqName] || {}),
+              background: 'radial-gradient(circle, rgba(233,69,96,0.8) 0%, rgba(233,69,96,0.4) 60%, transparent 80%)',
+            };
+          }
+        }
+      }
+    }
+
+    return styles;
+  }, [chess, lastMove, hintSquares, state]);
+
+  // Trigger AI response after a player move
+  const triggerAiMove = useCallback(async function() {
+    if (!appState.chess || appState.chess.isGameOver()) return;
+
+    setAiThinking(true);
+    try {
+      // Small delay for UX
+      await new Promise(function(r) { setTimeout(r, 200); });
+
+      const aiMoveResult = await getAIMove(appState.chess, appState.difficulty);
+      if (aiMoveResult) {
+        let result;
+        try {
+          result = appState.chess.move(aiMoveResult);
+        } catch (e) { /* invalid AI move */ }
+        if (result) {
+          appState.moveHistory = [...appState.moveHistory, result.san];
+          setLastMove({ from: aiMoveResult.from, to: aiMoveResult.to });
+          if (setAppStateExternal) setAppStateExternal({ ...appState });
+          sendStateUpdate(buildStatePayload());
+        }
+      }
+    } finally {
+      setAiThinking(false);
+    }
+  }, []);
+
+  // Handle piece drop (player move via react-chessboard)
+  const onPieceDrop = useCallback(function(sourceSquare, targetSquare, piece) {
+    if (!chess || !gameActive || !isPlayerTurn) return false;
+
+    // Check for pawn promotion
+    const movingPiece = chess.get(sourceSquare);
+    if (movingPiece && movingPiece.type === 'p') {
+      const toRank = targetSquare[1];
+      const isPromo = (movingPiece.color === 'w' && toRank === '8') || (movingPiece.color === 'b' && toRank === '1');
+      if (isPromo) {
+        // react-chessboard handles promotion UI via onPromotionPieceSelect
+        // We return false here; the promotion dialog will handle the actual move
+        return false;
+      }
+    }
+
+    let result;
+    try {
+      result = chess.move({ from: sourceSquare, to: targetSquare, promotion: 'q' });
+    } catch (e) { /* invalid move */ }
+
+    if (!result) return false;
+
+    appState.moveHistory = [...appState.moveHistory, result.san];
+    appState.redoStack = [];
+    setLastMove({ from: sourceSquare, to: targetSquare });
+    if (setAppStateExternal) setAppStateExternal({ ...appState });
+    sendStateUpdate(buildStatePayload());
+
+    // AI responds
+    triggerAiMove();
+    return true;
+  }, [chess, gameActive, isPlayerTurn, triggerAiMove]);
+
+  // Handle promotion piece selection
+  const onPromotionPieceSelect = useCallback(function(piece, promoteFromSquare, promoteToSquare) {
+    if (!piece) return false;
+    // piece is like "wQ", "wR", etc. Extract the type letter (lowercase)
+    const promoType = piece[1].toLowerCase();
+
+    let result;
+    try {
+      result = chess.move({ from: promoteFromSquare, to: promoteToSquare, promotion: promoType });
+    } catch (e) { /* invalid */ }
+
+    if (!result) return false;
+
+    appState.moveHistory = [...appState.moveHistory, result.san];
+    appState.redoStack = [];
+    setLastMove({ from: promoteFromSquare, to: promoteToSquare });
+    if (setAppStateExternal) setAppStateExternal({ ...appState });
+    sendStateUpdate(buildStatePayload());
+
+    // AI responds
+    triggerAiMove();
+    return true;
+  }, [chess, triggerAiMove]);
+
+  // Check if a promotion move is possible
+  const onPromotionCheck = useCallback(function(sourceSquare, targetSquare, piece) {
+    if (!chess) return false;
+    const movingPiece = chess.get(sourceSquare);
+    if (!movingPiece || movingPiece.type !== 'p') return false;
+    const toRank = targetSquare[1];
+    const isPromo = (movingPiece.color === 'w' && toRank === '8') || (movingPiece.color === 'b' && toRank === '1');
+    if (!isPromo) return false;
+    // Verify it's a legal move
+    const legal = chess.moves({ square: sourceSquare, verbose: true }).some(function(m) { return m.to === targetSquare; });
+    return legal;
+  }, [chess]);
+
+  // Only allow dragging own pieces on player's turn
+  const isDraggablePiece = useCallback(function(args) {
+    if (!chess || !gameActive || !isPlayerTurn) return false;
+    // args.piece is like "wP", "bN" etc.
+    const pieceColor = args.piece[0];
+    const turnChar = chess.turn(); // 'w' or 'b'
+    return pieceColor === turnChar;
+  }, [chess, gameActive, isPlayerTurn]);
+
+  const handleStartLocal = useCallback(function(diff, color) {
+    handleStartGame(null, { difficulty: diff, color: color });
+  }, []);
+
+  const handleUndo = useCallback(function() {
+    handleUndoMove(null);
+    setLastMove(null);
+    setHintSquares(null);
+  }, []);
+
+  const handleRedo = useCallback(function() {
+    handleRedoMove(null);
+    setHintSquares(null);
+  }, []);
+
+  const handleHint = useCallback(async function() {
+    if (!chess || !gameActive) return;
+    setAiThinking(true);
+    try {
+      const move = await getAIMove(chess, difficulty);
+      if (move) {
+        setHintSquares({ from: move.from, to: move.to });
+        setTimeout(function() { setHintSquares(null); }, 2000);
+      }
+    } finally {
+      setAiThinking(false);
+    }
+  }, [chess, gameActive, difficulty]);
+
+  const handleNewGame = useCallback(function() {
+    appState = { chess: null, gameActive: false, difficulty: 'medium', playerColor: 'white', moveHistory: [], undoStack: [], redoStack: [] };
+    setState({ ...appState });
+    setLastMove(null);
+    setHintSquares(null);
+  }, []);
+
+  // Render welcome screen if no active game
+  if (!gameActive || !chess) {
+    return h('div', null,
+      h(WelcomeScreen, { onStart: handleStartLocal }),
+    );
+  }
+
+  const isGameOver = chess.isGameOver();
+  const engineLabel = stockfishReady && !stockfishFailed
+    ? 'Stockfish engine active'
+    : 'Fallback AI (heuristic)';
+  const engineClass = stockfishReady && !stockfishFailed ? 'stockfish' : 'fallback';
+
+  return h('div', null,
+    h('div', { className: 'chess-app' },
+      // Board
+      h('div', { className: 'board-section' },
+        h('div', { className: 'board-wrapper', ref: boardWrapperRef },
+          h(Chessboard, {
+            id: 'chess-board',
+            position: chess.fen(),
+            onPieceDrop: onPieceDrop,
+            onPromotionPieceSelect: onPromotionPieceSelect,
+            onPromotionCheck: onPromotionCheck,
+            boardOrientation: playerColor === 'black' ? 'black' : 'white',
+            boardWidth: boardWidth,
+            isDraggablePiece: isDraggablePiece,
+            customSquareStyles: customSquareStyles,
+            customBoardStyle: {
+              borderRadius: '4px',
+              boxShadow: 'none',
+            },
+            customDarkSquareStyle: { backgroundColor: '#b58863' },
+            customLightSquareStyle: { backgroundColor: '#f0d9b5' },
+            animationDuration: 200,
+          })
+        ),
+        h('div', { className: 'engine-indicator ' + engineClass }, engineLabel),
+        aiThinking && h('div', { className: 'ai-thinking' }, 'AI is thinking...'),
+        // Controls below board
+        h('div', { className: 'controls', style: { width: boardWidth + 20 + 'px' } },
+          h('div', { className: 'controls-row' },
+            h('button', {
+              className: 'btn btn-secondary',
+              onClick: handleUndo,
+              disabled: !gameActive || moveHistory.length < 2 || aiThinking,
+            }, '\u21a9 Undo'),
+            h('button', {
+              className: 'btn btn-secondary',
+              onClick: handleRedo,
+              disabled: !gameActive || appState.redoStack.length === 0 || aiThinking,
+            }, '\u21aa Redo'),
+            h('button', {
+              className: 'btn btn-secondary',
+              onClick: handleHint,
+              disabled: !isPlayerTurn || isGameOver || aiThinking,
+            }, '\ud83d\udca1 Hint'),
+            h('button', { className: 'btn btn-primary', onClick: handleNewGame }, '\u2295 New Game'),
+          )
+        )
+      ),
+      // Sidebar
+      h('div', { className: 'sidebar' },
+        h(StatusCard, { chess: chess, playerColor: playerColor, difficulty: difficulty, gameActive: gameActive }),
+        h(MoveHistory, { moveHistory: moveHistory }),
+      )
+    ),
+  );
+}
+
+// -----------------------------------------------
+// Bootstrap
+// -----------------------------------------------
+// Initialize Stockfish in background, don't block rendering
+initStockfish().catch(function(err) {
+  console.warn('Stockfish initialization failed:', err);
+  stockfishFailed = true;
+});
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(h(App, null));
+
+// Send READY signal
+window.parent.postMessage({ type: 'READY', invocationId: null, payload: {} }, '*');
+</script>
+</body>
+</html>

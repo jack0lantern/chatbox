@@ -8,6 +8,7 @@ import 'photoswipe/dist/photoswipe.css'
 import { StrictMode, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
+import LoginScreen from './components/auth/LoginScreen'
 import i18n from './i18n'
 import { getLogger } from './lib/utils'
 import platform from './platform'
@@ -124,49 +125,88 @@ const tid = setTimeout(() => {
 }, 1000)
 
 // 等待初始化完成后再渲染
-initializeApp()
-  .catch((e) => {
-    // 初始化中的各个步骤已经捕获了错误，这里防止未来添加未捕获的逻辑
-    Sentry.captureException(e)
-    log.error('initializeApp error', e)
-  })
-  .finally(async () => {
-    clearTimeout(tid)
+const chatbridgeEnabled = !!process.env.CHATBRIDGE_SERVER_URL
 
-    // 等待settings初始化完成，避免闪屏
-    const [settings] = await Promise.all([initSettingsStore(), initLastUsedModelStore()])
+function startApp() {
+  initializeApp()
+    .catch((e) => {
+      // 初始化中的各个步骤已经捕获了错误，这里防止未来添加未捕获的逻辑
+      Sentry.captureException(e)
+      log.error('initializeApp error', e)
+    })
+    .finally(async () => {
+      clearTimeout(tid)
 
-    i18n.changeLanguage(settings.language)
-    // 初始化完成，可以开始渲染
+      // 等待settings初始化完成，避免闪屏
+      const [settings] = await Promise.all([initSettingsStore(), initLastUsedModelStore()])
+
+      i18n.changeLanguage(settings.language)
+      // 初始化完成，可以开始渲染
+      ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+        <StrictMode>
+          <ErrorBoundary>
+            <QueryClientProvider client={queryClient}>
+              <RouterProvider router={router} />
+            </QueryClientProvider>
+          </ErrorBoundary>
+        </StrictMode>
+      )
+
+      if (platform.type === 'mobile') {
+        SplashScreen.hide()
+      }
+      const el = document.querySelector('.splash-screen')
+      if (el) {
+        el.addEventListener('animationend', () => {
+          el.parentNode?.removeChild(el)
+        })
+        el.classList.add('splash-screen-fade-out')
+      }
+
+      if (window?.navigator?.storage) {
+        navigator.storage?.persisted().then((persisted) => {
+          if (!persisted) {
+            navigator.storage?.persist()
+          }
+        })
+      }
+    })
+}
+
+if (chatbridgeEnabled) {
+  const checkAuth = async () => {
+    try {
+      const res = await fetch('/api/auth/session', {
+        credentials: 'include',
+      })
+      const session = await res.json()
+      return !!session?.user
+    } catch {
+      return false
+    }
+  }
+
+  const renderLoginScreen = () => {
+    const splash = document.querySelector('.splash-screen')
+    if (splash) splash.remove()
+
     ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-      <StrictMode>
-        <ErrorBoundary>
-          <QueryClientProvider client={queryClient}>
-            <RouterProvider router={router} />
-          </QueryClientProvider>
-        </ErrorBoundary>
-      </StrictMode>
+      <LoginScreen onSuccess={() => {
+        window.location.reload()
+      }} />
     )
+  }
 
-    if (platform.type === 'mobile') {
-      SplashScreen.hide()
-    }
-    const el = document.querySelector('.splash-screen')
-    if (el) {
-      el.addEventListener('animationend', () => {
-        el.parentNode?.removeChild(el)
-      })
-      el.classList.add('splash-screen-fade-out')
-    }
-
-    if (window?.navigator?.storage) {
-      navigator.storage?.persisted().then((persisted) => {
-        if (!persisted) {
-          navigator.storage?.persist()
-        }
-      })
+  checkAuth().then((authenticated) => {
+    if (authenticated) {
+      startApp()
+    } else {
+      renderLoginScreen()
     }
   })
+} else {
+  startApp()
+}
 
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))

@@ -242,7 +242,19 @@ function analyzeMessageAttachments(
     const cacheKey = getTokenCacheKey({ tokenizerType, contentMode })
 
     if (isCurrentInput) {
-      totalTokens += attachment.tokenCountMap?.[cacheKey] ?? 0
+      if (isAttachmentCacheValid(attachment, cacheKey)) {
+        totalTokens += attachment.tokenCountMap?.[cacheKey] ?? 0
+      } else {
+        tasks.push({
+          type: 'attachment',
+          messageId: message.id,
+          attachmentId: attachment.id,
+          attachmentType: type,
+          tokenizerType,
+          contentMode,
+          priority: getPriority(isCurrentInput, 'attachment', messageIndex),
+        })
+      }
       continue
     }
 

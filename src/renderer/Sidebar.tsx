@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next'
 import Divider from './components/common/Divider'
 import { ScalableIcon } from './components/common/ScalableIcon'
 import ThemeSwitchButton from './components/dev/ThemeSwitchButton'
+import { ChatBridgeAccountSection } from './components/layout/ChatBridgeAccountSection'
 import SessionList from './components/session/SessionList'
 import TaskSessionList from './components/session/TaskSessionList'
 import { FORCE_ENABLE_DEV_PAGES } from './dev/devToolsConfig'
@@ -26,11 +27,11 @@ import useVersion from './hooks/useVersion'
 import { navigateToSettings } from './modals/Settings'
 import { trackingEvent } from './packages/event'
 import platform from './platform'
-import { featureFlags } from './utils/feature-flags'
 import icon from './static/icon.png'
 import { settingsStore, useLanguage } from './stores/settingsStore'
 import { taskSessionStore } from './stores/taskSessionStore'
 import { useUIStore } from './stores/uiStore'
+import { featureFlags } from './utils/feature-flags'
 import { CHATBOX_BUILD_PLATFORM } from './variables'
 
 export default function Sidebar() {
@@ -219,6 +220,7 @@ export default function Sidebar() {
         )}
 
         <Stack gap={0} px="xs" pb="xs">
+          <ChatBridgeAccountSection />
           <Divider />
           <Stack gap="xs" pt="xs" mb="xs">
             {sidebarMode === 'task' && featureFlags.taskMode ? (
