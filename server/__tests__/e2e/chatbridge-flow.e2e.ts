@@ -110,11 +110,9 @@ test.describe('Auth Flow', () => {
 test.describe('Post-Login Initialization', () => {
   test('after login, sidebar and session list are visible', async ({ page }) => {
     await login(page, INIT_EMAIL, TEST_PASSWORD)
-    await page.waitForTimeout(8000)
+    await page.waitForSelector('[data-testid="login-email"]', { state: 'hidden', timeout: 20000 }).catch(() => {})
+    await page.waitForTimeout(2000)
 
-    // The sidebar should be rendered — look for the session list or sidebar structure
-    const sidebar = page.locator('.sidebar, [class*="sidebar"], nav')
-    // At minimum, the login form should be gone
     await expect(page.locator('[data-testid="login-email"]')).not.toBeVisible()
   })
 
@@ -129,7 +127,8 @@ test.describe('Post-Login Initialization', () => {
 
   test('log out returns to login screen', async ({ page }) => {
     await login(page, LOGOUT_EMAIL, TEST_PASSWORD)
-    await page.waitForTimeout(8000)
+    await page.waitForSelector('[data-testid="login-email"]', { state: 'hidden', timeout: 20000 }).catch(() => {})
+    await page.waitForTimeout(2000)
     await expect(page.locator('[data-testid="login-email"]')).not.toBeVisible()
 
     await page.locator('[data-testid="chatbridge-logout"]').click()

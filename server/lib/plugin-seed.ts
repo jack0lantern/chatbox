@@ -63,7 +63,8 @@ export const bundledPlugins = [
   {
     appSlug: 'timeline',
     appName: 'Timeline Quiz',
-    description: 'A history quiz game. Place historical events in chronological order. 3 lives.',
+    description:
+      'A history quiz game. Place historical events in chronological order. 3 lives. For hints or coaching about where the current event fits, call get_game_state first (read-only snapshot); the model should give tailored guidance in chat — there is no built-in hint tool.',
     iframeUrl: '/plugins/timeline/index.html',
     authPattern: 'internal',
     toolSchemas: [
@@ -83,8 +84,9 @@ export const bundledPlugins = [
         parameters: { type: 'object', properties: {} },
       },
       {
-        name: 'get_hint',
-        description: 'Narrow down the correct position for the current card',
+        name: 'get_game_state',
+        description:
+          'Read-only quiz snapshot: placed timeline (with years), current card title and category only (year omitted so you do not spoil the answer), score, lives, round, deck remaining count. Use before giving placement hints or chronology coaching in chat.',
         parameters: { type: 'object', properties: {} },
       },
       {

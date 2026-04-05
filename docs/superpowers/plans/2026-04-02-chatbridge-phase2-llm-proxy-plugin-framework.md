@@ -582,8 +582,9 @@ export const bundledPlugins = [
         parameters: { type: 'object', properties: {} },
       },
       {
-        name: 'get_hint',
-        description: 'Narrow down the correct position for the current card',
+        name: 'get_game_state',
+        description:
+          'Read-only quiz snapshot for coaching and custom hints in chat (current card year omitted from payload)',
         parameters: { type: 'object', properties: {} },
       },
       {

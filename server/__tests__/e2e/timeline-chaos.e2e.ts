@@ -36,9 +36,9 @@ test.describe('Timeline Plugin Chaos Testing', () => {
     expect(pageErrors).toEqual([])
   })
 
-  test('get_hint before start_quiz', async ({ page }) => {
+  test('get_game_state before start_quiz', async ({ page }) => {
     const { pageErrors } = attachErrorCollectors(page)
-    await sendTool(page, 'get_hint')
+    await sendTool(page, 'get_game_state')
     await page.waitForTimeout(500)
     expect(pageErrors).toEqual([])
   })
@@ -198,7 +198,7 @@ test.describe('Timeline Plugin Chaos Testing', () => {
     await sendRaw(page, { type: 'DESTROY' })
     await page.waitForTimeout(300)
     // Send more tools after destroy
-    await sendTool(page, 'get_hint')
+    await sendTool(page, 'get_game_state')
     await sendTool(page, 'check_placement')
     await sendTool(page, 'next_card')
     await page.waitForTimeout(500)
@@ -221,7 +221,7 @@ test.describe('Timeline Plugin Chaos Testing', () => {
     await sendTool(page, 'start_quiz')
     await page.waitForTimeout(1000)
     for (let i = 0; i < 10; i++) {
-      await sendTool(page, 'get_hint')
+      await sendTool(page, 'get_game_state')
       await sendTool(page, 'check_placement')
       await sendTool(page, 'next_card')
     }
@@ -231,10 +231,10 @@ test.describe('Timeline Plugin Chaos Testing', () => {
 
   // --- Gameplay edge cases ---
 
-  test('start then get_hint immediately', async ({ page }) => {
+  test('start then get_game_state immediately', async ({ page }) => {
     const { pageErrors } = attachErrorCollectors(page)
     await sendTool(page, 'start_quiz')
-    await sendTool(page, 'get_hint')
+    await sendTool(page, 'get_game_state')
     await page.waitForTimeout(1500)
     expect(pageErrors).toEqual([])
   })

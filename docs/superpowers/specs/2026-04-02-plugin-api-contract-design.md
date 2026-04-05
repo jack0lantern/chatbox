@@ -151,7 +151,7 @@ Every message follows this structure:
 
 Sent after the LLM emits a tool call and auth has been resolved by the platform.
 
-**An iframe can receive multiple `INVOKE_TOOL` messages during its lifetime.** The first one typically starts the session (e.g., `start_game`). Subsequent ones are in-session commands routed by the LLM when the user sends chat messages directed at the running plugin (e.g., `get_hint`, `end_game`). Each `INVOKE_TOOL` carries a unique `invocationId`, but the iframe stays alive across all of them.
+**An iframe can receive multiple `INVOKE_TOOL` messages during its lifetime.** The first one typically starts the session (e.g., `start_game`). Subsequent ones are in-session commands routed by the LLM when the user sends chat messages directed at the running plugin (e.g., `get_game_state`, `get_hint`, `end_game`). Each `INVOKE_TOOL` carries a unique `invocationId`, but the iframe stays alive across all of them.
 
 The LLM — not the plugin — is responsible for interpreting user intent and mapping it to the correct tool call. Plugin developers must define tool schemas for all actions their plugin can handle.
 

@@ -226,7 +226,7 @@ No LLM dependency for quiz content. The LLM's only role is routing user intent t
 |------|--------|-------------|
 | `start_quiz` | `{ category?: string }` | Start a new game. Optional category filter. Shuffles the deck. |
 | `check_placement` | `{}` | Validate where the student placed the current card |
-| `get_hint` | `{}` | Narrow down the correct position |
+| `get_game_state` | `{}` | Read-only quiz snapshot for the LLM (placed timeline with years; current card text/category only — year omitted so answers are not spoiled). Use for custom hints and coaching in chat. |
 | `next_card` | `{}` | Draw the next card (called automatically after correct placement) |
 
 Difficulty is emergent — the further the student gets, the tighter the gaps between dates on the timeline, making placement harder. No explicit difficulty param needed.

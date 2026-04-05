@@ -103,7 +103,7 @@ The timeline plugin:
    - Wrong placement: lose a life, card still needs to be placed
    - 3 lives total. At 0 lives: game over, send `TASK_COMPLETE` with final score
 3. **UI:** Horizontal timeline with placed cards, current card highlighted, drop zones between existing cards
-4. **postMessage protocol:** READY on load, handles INVOKE_TOOL for start_quiz/check_placement/get_hint/next_card, sends STATE_UPDATE after each action
+4. **postMessage protocol:** READY on load, handles INVOKE_TOOL for start_quiz/check_placement/get_game_state/next_card, sends STATE_UPDATE after each action
 
 For MVP: use click-to-place instead of drag-and-drop (simpler). Player clicks a gap in the timeline to place the current card.
 
@@ -121,7 +121,7 @@ Create `server/public/plugins/timeline/index.html` — a complete self-contained
 - postMessage protocol: READY, INVOKE_TOOL handler, STATE_UPDATE, TASK_COMPLETE, ERROR
 - Game state: timeline (placed cards), deck (remaining), currentCard, score, lives (3)
 - Click-to-place UI: timeline displayed horizontally, gaps between cards are clickable
-- Tool handlers: start_quiz, check_placement, get_hint, next_card
+- Tool handlers: start_quiz, check_placement, get_game_state, next_card
 
 - [ ] **Step 3: Verify the plugin serves correctly**
 

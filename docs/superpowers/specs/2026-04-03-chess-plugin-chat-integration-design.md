@@ -4,10 +4,11 @@ Wire the chess plugin into the chat window so the AI can invoke chess tools and 
 
 ## Decisions
 
-- **Trigger**: AI-driven — AI generates tool calls (`start_game`, `get_hint`, etc.)
+- **Trigger**: AI-driven — AI generates tool calls (`start_game`, `get_game_state`, `get_hint`, etc.)
 - **Plugin registry**: Client fetches from `GET /api/plugins`, caches result
 - **Tool discovery**: Plugin Tool Provider (parallel to MCP, not shoehorned into MCP)
 - **Board persistence**: Single persistent iframe pinned in chat view, not inline per-message
+- **Coaching vs move suggestion**: The model uses **`get_game_state`** for position-aware chat (openings, plans, coaching). It uses **`get_hint`** only when the user wants a concrete best-move suggestion from the engine. Descriptions on the plugin record and each tool schema must make that split obvious to the LLM.
 
 ---
 
@@ -17,7 +18,7 @@ Wire the chess plugin into the chat window so the AI can invoke chess tools and 
 
 Fetches plugin definitions from `GET /api/plugins` and converts each plugin's `toolSchemas` into Vercel AI SDK `ToolSet` format.
 
-- Tool names prefixed as `plugin__<slug>__<toolName>` (e.g., `plugin__chess__start_game`) to namespace them and avoid collisions with MCP or built-in tools.
+- Tool names prefixed as `plugin__<slug>__<toolName>` (e.g., `plugin__chess__start_game`, `plugin__chess__get_game_state`) to namespace them and avoid collisions with MCP or built-in tools.
 - Each tool's `execute` function doesn't run logic itself. It delegates to `PluginManager.invoke()`, which communicates with the persistent iframe and returns a Promise that resolves on `TASK_COMPLETE`.
 - Plugin schemas cached in memory after first fetch. Cache invalidated on app startup or explicit refresh.
 
@@ -92,14 +93,49 @@ Minimal changes to `src/renderer/components/message-parts/ToolCallPartUI.tsx`.
 
 ---
 
-## 5. Chess Plugin postMessage Adaptation
+## 5. LLM coaching and `get_game_state`
+
+The model does not see the board visually. For **openings, strategy, and coaching**, it needs a **read-only snapshot** of the game. That snapshot must arrive through a **tool result** (same contract as other chess tools), not by guessing from chat history.
+
+### Tool: `get_game_state`
+
+| Aspect | Specification |
+|--------|----------------|
+| **Purpose** | Return structured state so the LLM can discuss the position, suggest plans, reference opening ideas, and coach without playing a move for the student. |
+| **Parameters** | Prefer `{}` (no parameters) for simplicity; optional `detail` enum later if you need a shorter payload for token limits. |
+| **Behavior** | Synchronous from the iframe’s perspective: read current `chess.js` (or equivalent) state, build JSON, send **`TASK_COMPLETE`** immediately. **No** Stockfish search. |
+| **When to call** | Before or when answering user questions about “this position,” “what opening is this,” “what should I think about,” etc. Not required for every message if the model already has a recent snapshot from a prior tool result. |
+| **Payload (illustrative)** | At minimum: `fen`, SAN move list (or PGN fragment), side to move, flags (`inCheck`, `isCheckmate`, `isStalemate`, `isDraw`), `playerColor`, `difficulty`, `gameStarted` (or equivalent). Optionally a one-line `summary` string for quick model grounding. |
+| **Empty / no game** | If no game is in progress, return a clear result (e.g. `gameStarted: false`, `fen: null`) and a short `message` — do not throw; the LLM can tell the user to start a game. |
+
+### Distinction from `get_hint`
+
+| Tool | Role |
+|------|------|
+| `get_game_state` | **Observation** — “what is the position?” for explanation and coaching. |
+| `get_hint` | **Engine suggestion** — “what move should I play?” using Stockfish (or configured engine). |
+
+Tool descriptions and the **plugin-level `description`** in the registry must spell this out so routers do not use `get_hint` for pure analysis questions.
+
+### Clearer tool descriptions (registry)
+
+Descriptions are part of the **tool contract** for the LLM.
+
+- **`server/lib/plugin-seed.ts`** (or DB-backed plugin rows in production): update the Chess **`description`** to mention coaching: call `get_game_state` for position-aware help; call `get_hint` only for explicit move suggestions; use `start_game` / `end_game` / undo / redo as today.
+- **Per-tool `description` fields** in `toolSchemas`: each should state **when** to use the tool and **what** it returns in one or two sentences. Avoid duplicate wording across tools; make the split between `get_game_state` and `get_hint` explicit.
+
+No change to the Plugin Tool Provider or postMessage envelope is required beyond registering the new schema and handling it in the iframe.
+
+---
+
+## 6. Chess Plugin postMessage Adaptation
 
 **Modified file:** `server/public/plugins/chess/index.html`
 
 The chess app already has game logic. It needs to implement the postMessage protocol from the [Plugin API Contract](2026-04-02-plugin-api-contract-design.md):
 
 - Send `READY` on load
-- Listen for `INVOKE_TOOL` → route to correct handler (`start_game`, `get_hint`, `end_game`, `undo_move`, `redo_move`)
+- Listen for `INVOKE_TOOL` → route to correct handler (`start_game`, `get_game_state`, `get_hint`, `end_game`, `undo_move`, `redo_move`)
 - Send `STATE_UPDATE` after each move (FEN, move history, difficulty, player color)
 - Send `TASK_COMPLETE` when a tool invocation finishes (return result to AI)
 - Listen for `STATE_RESTORE` → reload game from saved FEN + history
@@ -107,7 +143,7 @@ The chess app already has game logic. It needs to implement the postMessage prot
 
 ---
 
-## 6. Files
+## 7. Files
 
 ### New
 
@@ -125,7 +161,8 @@ The chess app already has game logic. It needs to implement the postMessage prot
 | `src/renderer/components/message-parts/ToolCallPartUI.tsx` | Detect `plugin__` prefix, render compact pill |
 | `src/renderer/packages/tools/index.ts` | Strip plugin prefix for display names |
 | `src/renderer/components/chat/` (layout) | Mount `PluginContainer` in chat view |
-| `server/public/plugins/chess/index.html` | Add postMessage protocol |
+| `server/public/plugins/chess/index.html` | postMessage protocol; includes `get_game_state` handler |
+| `server/lib/plugin-seed.ts` | Chess: add `get_game_state` schema; tighten plugin + per-tool descriptions |
 
 ### Unchanged
 
@@ -134,5 +171,8 @@ The chess app already has game logic. It needs to implement the postMessage prot
 | `src/renderer/components/plugin/PluginBridge.ts` | Already implements postMessage protocol |
 | `src/renderer/components/plugin/PluginFrame.tsx` | Already handles iframe lifecycle |
 | `src/renderer/packages/plugin-types.ts` | Already defines message types |
-| Server API routes (`/api/plugins`, `/api/plugins/{id}/state`) | Already exist |
-| `server/lib/plugin-seed.ts` | Already has chess plugin definition |
+| Server API routes (`/api/plugins`, `/api/plugins/{id}/state`) | Already exist; no new route required for `get_game_state` |
+
+### Related product docs
+
+When updating the high-level platform catalog of chess tools, keep in sync with [ChatBridge platform design](2026-04-02-chatbridge-platform-design.md) (chess tool table).

@@ -388,19 +388,6 @@
     }
     .play-again-btn:hover { transform: translateY(-2px); }
 
-    /* ── Hint text ── */
-    .hint-text {
-      font-size: 0.8rem;
-      color: #fbbf24;
-      text-align: center;
-      padding: 6px 16px;
-      background: rgba(251,191,36,0.1);
-      border-radius: 8px;
-      border: 1px solid rgba(251,191,36,0.2);
-      max-width: 380px;
-      margin: 0 auto;
-    }
-
     /* ── Loading ── */
     .loading {
       flex: 1;
@@ -469,7 +456,6 @@
     const [round, setRound] = useState(0);
     const [feedback, setFeedback] = useState(null); // { type: 'correct'|'wrong', text }
     const [cardAnim, setCardAnim] = useState(null); // 'correct-flash' | 'wrong-flash'
-    const [hint, setHint] = useState(null);
     const [newCardIds, setNewCardIds] = useState(new Set());
     const [deckComplete, setDeckComplete] = useState(false);
 
@@ -501,8 +487,8 @@
               callId,
               result: { correct: null, lives: s.lives, score: s.score }
             });
-          } else if (tool === 'get_hint') {
-            handleGetHint(callId);
+          } else if (tool === 'get_game_state') {
+            handleGetGameState(callId);
           } else if (tool === 'next_card') {
             handleNextCard(callId);
           }
@@ -558,7 +544,6 @@
         setScore(0);
         setLives(3);
         setRound(1);
-        setHint(null);
         setDeckComplete(false);
         setNewCardIds(new Set([anchor.id]));
         setPhase('playing');
@@ -573,18 +558,57 @@
       }
     }
 
-    // ── get_hint ──────────────────────────────────────────────────────────
-    function handleGetHint(callId) {
+    // ── get_game_state (no current-card year — avoids spoiling the quiz) ──
+    function handleGetGameState(callId) {
       const s = stateRef.current;
-      if (!s.currentCard || !s.timeline.length) {
-        sendMsg('TASK_COMPLETE', { callId, result: { hint: 'No hint available.' } });
+      if (s.phase !== 'playing' && s.phase !== 'gameover') {
+        sendMsg('TASK_COMPLETE', {
+          callId,
+          result: {
+            quizActive: false,
+            phase: s.phase,
+            message: 'No active quiz. Use start_quiz to begin.',
+          },
+        });
         return;
       }
-      const mid = s.timeline[Math.floor(s.timeline.length / 2)];
-      const direction = s.currentCard.year < mid.year ? 'before' : 'after';
-      const hintText = `This event happened ${direction} "${mid.event}" (${formatYear(mid.year)}).`;
-      setHint(hintText);
-      sendMsg('TASK_COMPLETE', { callId, result: { hint: hintText } });
+
+      const timeline = (s.timeline || []).map((c) => ({
+        id: c.id,
+        event: c.event,
+        year: c.year,
+        category: c.category,
+        status: c.status,
+      }));
+
+      const currentCard = s.currentCard
+        ? { id: s.currentCard.id, event: s.currentCard.event, category: s.currentCard.category }
+        : null;
+
+      let summary = '';
+      if (s.phase === 'gameover') {
+        summary = s.lives > 0 ? 'Quiz complete.' : 'Game over (no lives left).';
+      } else if (currentCard) {
+        summary = `Round ${s.round}: place "${currentCard.event}" on the timeline (${s.lives} lives, score ${s.score}).`;
+      } else {
+        summary = `Round ${s.round}: no current card (deck complete: ${s.deckComplete}).`;
+      }
+
+      sendMsg('TASK_COMPLETE', {
+        callId,
+        result: {
+          quizActive: true,
+          phase: s.phase,
+          score: s.score,
+          lives: s.lives,
+          round: s.round,
+          deckComplete: s.deckComplete,
+          deckRemainingCount: s.deck.length,
+          timeline,
+          currentCard,
+          summary,
+        },
+      });
     }
 
     // ── next_card ─────────────────────────────────────────────────────────
@@ -599,7 +623,6 @@
         const remaining = prev.slice(1);
         setCurrentCard(next);
         setRound(r => r + 1);
-        setHint(null);
         sendMsg('TASK_COMPLETE', { callId, result: { card: next, remaining: remaining.length } });
         return remaining;
       });
@@ -642,7 +665,6 @@
 
       setTimeline(correctTimeline);
       setNewCardIds(new Set([currentCard.id]));
-      setHint(null);
 
       if (isCorrect) {
         const newScore = score + 1;
@@ -756,9 +778,6 @@
           : deckComplete
             ? React.createElement('div', { className: 'complete-banner' }, '✅ All cards placed! Final score: ' + score)
             : null,
-
-        // hint
-        hint && React.createElement('div', { className: 'hint-text' }, '💡 ' + hint),
 
         // timeline
         React.createElement('div', { className: 'timeline-area' },

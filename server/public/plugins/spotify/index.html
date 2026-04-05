@@ -32,7 +32,27 @@
     }
 
     .header svg { width: 28px; height: 28px; fill: #1DB954; }
-    .header h1 { font-size: 20px; font-weight: 700; }
+    .header h1 { font-size: 20px; font-weight: 700; flex: 1; }
+
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #b3b3b3;
+    }
+
+    .user-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #333;
+    }
+
+    .user-name { white-space: nowrap; }
+    .user-name a { color: #b3b3b3; text-decoration: none; }
+    .user-name a:hover { color: #1DB954; }
 
     /* Search */
     .search-section { margin-bottom: 20px; }
@@ -476,9 +496,20 @@
       const [dragOverIndex, setDragOverIndex] = useState(-1);
       const [status, setStatus] = useState({ text: 'Ready', type: '' });
       const [currentInvocationId, setCurrentInvocationId] = useState(null);
+      const [profile, setProfile] = useState(null);
 
       const audioRef = useRef(null);
       const searchTimerRef = useRef(null);
+
+      // Fetch Spotify profile on mount
+      useEffect(function() {
+        apiRequest('get_profile', {}).then(function(res) {
+          if (res.data) {
+            setProfile(res.data);
+            setStatus({ text: 'Connected', type: 'connected' });
+          }
+        }).catch(function() {});
+      }, []);
 
       // Debounced search
       useEffect(function() {
@@ -711,7 +742,20 @@
         // Header
         h('div', { className: 'header' },
           h(SpotifyIcon),
-          h('h1', null, 'Playlist Builder')
+          h('h1', null, 'Playlist Builder'),
+          profile
+            ? h('div', { className: 'user-badge' },
+                profile.imageUrl
+                  ? h('img', { className: 'user-avatar', src: profile.imageUrl, alt: '' })
+                  : null,
+                h('span', { className: 'user-name' },
+                  profile.spotifyUrl
+                    ? h('a', { href: profile.spotifyUrl, target: '_blank', rel: 'noopener noreferrer' },
+                        profile.displayName || profile.id)
+                    : (profile.displayName || profile.id)
+                )
+              )
+            : null
         ),
 
         // Created playlists

@@ -26,6 +26,20 @@ export async function POST(req: Request) {
     let result: unknown
 
     switch (action) {
+      case 'get_profile': {
+        const meRes = await spotifyFetch(accessToken, '/me')
+        if (!meRes.ok) throw new Error(`Spotify API: ${meRes.status}`)
+        const me = await meRes.json()
+        result = {
+          displayName: me.display_name,
+          email: me.email,
+          imageUrl: me.images?.[0]?.url ?? null,
+          spotifyUrl: me.external_urls?.spotify ?? null,
+          id: me.id,
+        }
+        break
+      }
+
       case 'search_songs': {
         const q = encodeURIComponent(params.query)
         const response = await spotifyFetch(accessToken, `/search?type=track&q=${q}&limit=20`)
